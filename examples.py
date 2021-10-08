@@ -35,7 +35,7 @@ bronschhofen_articles_search = DhsArticle.search_for_articles(
 # # do not forget the &firstIndex= ending for the url
 ecclesiastic_entries = DhsArticle.scrape_articles_from_search_url(#scrape_all_articles(
     "https://hls-dhs-dss.ch/fr/search/category?text=*&sort=score&sortOrder=desc&collapsed=true&r=1&rows=20&firstIndex=0&f_hls.lexicofacet_string=1%2F006800.009500.&firstIndex=",
-    nb_articles_max=13
+    max_nb_articles=13
 )
 
 # %%

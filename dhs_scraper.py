@@ -1,17 +1,16 @@
-import requests as r
-import re
-from lxml import html
 from functools import reduce
-import math
-import copy
-
 import json
-import pandas as pd
-
-from utils import get_attributes_string
+import re
+import math
 from time import sleep
 
-BULK_DOWNLOAD_COOL_DOWN = 0.1 # seconds
+from lxml import html
+import pandas as pd
+import requests as r
+
+from .utils import get_attributes_string
+
+BULK_DOWNLOAD_COOL_DOWN = 0.5 # seconds
 DHS_ARTICLE_TEXT_REPR_NB_CHAR = 100 # nb char of text displayed in DhsArticle representation
 
 # %%
@@ -36,7 +35,7 @@ class DhsArticle:
         self.language = language
         self.id = id
         self.version = version
-        self.url = url if url else DhsArticle.get_url_from_id(language, id, version)
+        self.url = url if url else DhsArticle.get_url_from_id(id, language, version)
         self.page = None
         self.text = None
         self.tags = None
@@ -57,7 +56,7 @@ class DhsArticle:
             self.page = None
         return (self.text, self.tags)
 
-        
+
     def __str__(self):
         odict = self.__dict__.copy()
         if "text" in odict and odict["text"] and len(odict["text"])>DHS_ARTICLE_TEXT_REPR_NB_CHAR:
@@ -74,6 +73,7 @@ class DhsArticle:
         return DhsArticle(new_language, self.id, self.version)
 
     def to_json(self, *args, **kwargs):
+        """Returns a json string serialization of this DhsArticle"""
         opage = self.page
         self.page=None
         jsonstr =  json.dumps(self.__dict__, *args, **kwargs)
@@ -109,10 +109,9 @@ class DhsArticle:
             return (None, None, None)
 
 
-        
 
     @staticmethod
-    def scrape_articles_from_search_url(search_url, rows_per_page=20, nb_articles_max=None):
+    def scrape_articles_from_search_url(search_url, rows_per_page=20, max_nb_articles=None):
         """returns a list of DHS articles' names & URLs from a DHS search url
 
         search_url is an url corresponding to a search in the DHS search interface
@@ -120,15 +119,14 @@ class DhsArticle:
         search_url example:
         "https://hls-dhs-dss.ch/fr/search/category?text=*&sort=score&sortOrder=desc&collapsed=true&r=1&rows=100&f_hls.lexicofacet_string=2%2F006800.009500.009600.&f_hls.lexicofacet_string=2%2F006800.009500.009700.&f_hls.lexicofacet_string=2%2F006800.009500.009800.&f_hls.lexicofacet_string=2%2F006800.009500.009900.&f_hls.lexicofacet_string=2%2F006800.009500.010000.&f_hls.lexicofacet_string=2%2F006800.009500.010100.&f_hls.lexicofacet_string=2%2F006800.009500.010200.&f_hls.lexicofacet_string=2%2F006800.009500.010300.&firstIndex="
         
-        returns a list of DhsArticle
+        returns a generator of DhsArticle
         """
         articles_page_url = search_url+"0"
         articles_page = r.get(articles_page_url)
         tree = html.fromstring(articles_page.content)
         articles_count = int(tree.cssselect(".hls-search-header__count")[0].text_content())
-        if nb_articles_max is not None:
-            articles_count = nb_articles_max
-        articles_list = [None]*articles_count
+        if max_nb_articles is not None:
+            articles_count = max_nb_articles
         for search_page_number in range(0,math.ceil(articles_count/rows_per_page)+1):
             search_results = tree.cssselect(".search-result a")
             for i,c in enumerate(search_results):
@@ -140,27 +138,27 @@ class DhsArticle:
                 # search-result__title
                 page_url = c.xpath("@href")[0]
                 article = DhsArticle(url="https://hls-dhs-dss.ch"+page_url, name= cname)
-                articles_list[article_index] = article
+                yield article
                 sleep(BULK_DOWNLOAD_COOL_DOWN)
             articles_page_url = search_url+str(search_page_number*rows_per_page)
             articles_page = r.get(articles_page_url)
             tree = html.fromstring(articles_page.content)
-        return articles_list
+
     @staticmethod
-    def search_for_articles(keywords, rows_per_page=20, nb_articles_max=None):
+    def search_for_articles(keywords, rows_per_page=20, max_nb_articles=None):
         if not isinstance(keywords, str):
             keywords = " ".join(keywords)
         search_url = f"https://hls-dhs-dss.ch/fr/search/?sort=score&sortOrder=desc&rows={rows_per_page}&highlight=true&facet=true&r=1&text={keywords}&firstIndex="
-        return DhsArticle.scrape_articles_from_search_url(search_url, rows_per_page, nb_articles_max)
+        return DhsArticle.scrape_articles_from_search_url(search_url, rows_per_page, max_nb_articles)
+
     @staticmethod
-    def scrape_all_articles(language="fr", rows_per_page=20, nb_articles_max=None):
+    def scrape_all_articles(language="fr", rows_per_page=100, max_nb_articles_per_letter=None):
         """Scrapes all articles from DHS"""
         alphabet_url_basis = f"https://hls-dhs-dss.ch/{language}/search/alphabetic?text=*&sort=hls.title_sortString&sortOrder=asc&collapsed=true&r=1&rows={rows_per_page}&f_hls.letter_string="
         firstindex_arg_basis = "&firstIndex="
-        articles_by_letter = {}
         for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
             print("Downloading articles starting with letter: "+letter)
             url = alphabet_url_basis+letter+firstindex_arg_basis
-            articles_by_letter[letter] = DhsArticle.scrape_articles_from_dhs_search(url, rows_per_page, nb_articles_max)
-        return articles_by_letter
+            for a in DhsArticle.scrape_articles_from_search_url(url, rows_per_page, max_nb_articles_per_letter):
+                yield a
 

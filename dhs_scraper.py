@@ -20,18 +20,23 @@ article_id_version_regex = re.compile(r"/(\w+)?/?articles/(.+?)/(\d{4}-\d{2}-\d{
 
 
 class DhsArticle:
-    def __init__(self, language, id, version, name=None, url=None):
+    def __init__(self, language=None, id=None, version=None, name=None, url=None):
+        """Creates a DhsArticle, must at least have the id or url argument not None
+        
+        default language is german
+        default version is latest
+        """
+        if (not id) and (not url):
+            raise Exception("DhsArticle.__init__(): at least one of id or url must be specified")
         self.name=name
+        if (not id) and url:
+            language, id, version = DhsArticle.get_language_id_version_from_url(url)
+            if not id:
+                raise Exception("DhsArticle.__init__(): not a DhsArticle url: "+url)
+        self.language = language
         self.id = id
-        if version:
-            self.version = version
-        else:
-            print("No version for DHSArticle: "+name)
-        self.url=url if url else DhsArticle.get_url_from_id(language, id, version)
-        if language:
-            self.language = language
-        else:
-            print("No language for DHSArticle: "+name)
+        self.version = version
+        self.url = url if url else DhsArticle.get_url_from_id(language, id, version)
         self.page = None
         self.text = None
         self.tags = None
@@ -50,6 +55,9 @@ class DhsArticle:
         self.tags = [{"tag":el.text_content(),"url":el.xpath("@href")[0]} for el in pagetree.cssselect(".hls-service-box-right a")]
         if drop_page:
             self.page = None
+        return (self.text, self.tags)
+
+        
     def __str__(self):
         odict = self.__dict__.copy()
         if "text" in odict and odict["text"] and len(odict["text"])>DHS_ARTICLE_TEXT_REPR_NB_CHAR:
@@ -101,21 +109,10 @@ class DhsArticle:
             return (None, None, None)
 
 
-    @staticmethod
-    def from_url(url, name=None):
-        article_id_version_match = article_id_version_regex.search(url)
-        if article_id_version_match:
-            language = article_id_version_match.group(1)
-            id = article_id_version_match.group(2)
-            version = article_id_version_match.group(3)
-            return DhsArticle(language, id, version, name, url)
-        else:
-            raise Exception("DhsArticle.from_url(): missing id from DhsArticle url: "+url)
-            
-
+        
 
     @staticmethod
-    def scrape_articles_from_dhs_search(search_url, rows_per_page=100, nb_articles_max=None):
+    def scrape_articles_from_search_url(search_url, rows_per_page=20, nb_articles_max=None):
         """returns a list of DHS articles' names & URLs from a DHS search url
 
         search_url is an url corresponding to a search in the DHS search interface
@@ -133,26 +130,28 @@ class DhsArticle:
             articles_count = nb_articles_max
         articles_list = [None]*articles_count
         for search_page_number in range(0,math.ceil(articles_count/rows_per_page)+1):
-            print("Getting search results, firstIndex=",rows_per_page*search_page_number, "\nurl = ",articles_page_url)
             search_results = tree.cssselect(".search-result a")
             for i,c in enumerate(search_results):
                 article_index = search_page_number*rows_per_page+i
                 if article_index>=articles_count:
                     break
                 ctitle = c.cssselect(".search-result__title")
-                print(f"len(ctitle): {len(ctitle)}, ctitle: {ctitle }")
                 cname = ctitle[0].text_content().strip()
                 # search-result__title
                 page_url = c.xpath("@href")[0]
-                article = DhsArticle.from_url("https://hls-dhs-dss.ch"+page_url, cname)
+                article = DhsArticle(url="https://hls-dhs-dss.ch"+page_url, name= cname)
                 articles_list[article_index] = article
                 sleep(BULK_DOWNLOAD_COOL_DOWN)
             articles_page_url = search_url+str(search_page_number*rows_per_page)
             articles_page = r.get(articles_page_url)
             tree = html.fromstring(articles_page.content)
         return articles_list
-
-
+    @staticmethod
+    def search_for_articles(keywords, rows_per_page=20, nb_articles_max=None):
+        if not isinstance(keywords, str):
+            keywords = " ".join(keywords)
+        search_url = f"https://hls-dhs-dss.ch/fr/search/?sort=score&sortOrder=desc&rows={rows_per_page}&highlight=true&facet=true&r=1&text={keywords}&firstIndex="
+        return DhsArticle.scrape_articles_from_search_url(search_url, rows_per_page, nb_articles_max)
     @staticmethod
     def scrape_all_articles(language="fr", rows_per_page=20, nb_articles_max=None):
         """Scrapes all articles from DHS"""

@@ -5,6 +5,6 @@ The aim of this repo is simple: providing a simple scraper for the [Swiss Histor
 `examples.py` shows simple examples to get you started.
 Look at `dhs_scraper.py` for more details.
 
-Dictionnaire historique de la Suisse (DHS)
-Historisches Lexikon der Schweiz (HLS)
+Dictionnaire historique de la Suisse (DHS)<br/>
+Historisches Lexikon der Schweiz (HLS)<br/>
 Dizionario Storico della Svizzera (DSS)

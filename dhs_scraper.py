@@ -8,8 +8,6 @@ from lxml import html
 import pandas as pd
 import requests as r
 
-from .utils import get_attributes_string
-
 BULK_DOWNLOAD_COOL_DOWN = 0.5 # seconds
 DHS_ARTICLE_TEXT_REPR_NB_CHAR = 100 # nb char of text displayed in DhsArticle representation
 
@@ -17,6 +15,24 @@ DHS_ARTICLE_TEXT_REPR_NB_CHAR = 100 # nb char of text displayed in DhsArticle re
 
 article_id_version_regex = re.compile(r"/(\w+)?/?articles/(.+?)/(\d{4}-\d{2}-\d{2})?")
 
+def get_attributes_string(class_name, object_dict):
+    return f"""{class_name}({', '.join([
+        f"{str(k)}: {str(v)}"
+        for k, v in object_dict.items()
+    ])})"""
+
+def download_drop_page(func):
+    """decorator to download page before func execution and,
+    if asked, drop it just after"""
+    def inner(self,drop_page=False):
+        self.download_page()
+        result = func(self)
+        if drop_page:
+            self.drop_page()
+        return result
+    return inner
+
+# %%
 
 class DhsArticle:
     def __init__(self, language=None, id=None, version=None, name=None, url=None):
@@ -44,17 +60,36 @@ class DhsArticle:
     def download_page(self):
         if not self.page:# and counter<5:
             self.page = r.get(self.url)
+            self._pagetree = html.fromstring(self.page.content)
         return self.page
+    def drop_page(self):
+        self.page = None
+        del self._pagetree
 
-
-    def get_text_and_tags(self, drop_page=False):
-        self.download_page()
-        pagetree = html.fromstring(self.page.content)
-        self.text = reduce(lambda s,el: s+el.text_content()+"\n\n", pagetree.cssselect(".hls-article-text-unit p"), "")[0:-2]
-        self.tags = [{"tag":el.text_content(),"url":el.xpath("@href")[0]} for el in pagetree.cssselect(".hls-service-box-right a")]
-        if drop_page:
-            self.page = None
-        return (self.text, self.tags)
+    @download_drop_page
+    def get_text(self, drop_page=False):
+        self.text = reduce(lambda s,el: s+el.text_content()+"\n\n", self._pagetree.cssselect(".hls-article-text-unit p"), "")[0:-2]
+        return self.text
+    @download_drop_page
+    def get_tags(self, drop_page=False):
+        self.tags = [{"tag":el.text_content(),"url":el.xpath("@href")[0]} for el in self._pagetree.cssselect(".hls-service-box-right a")]
+        return self.tags
+    @download_drop_page
+    def get_sources(self, drop_page=False):
+        # TODO
+        return self.sources
+    @download_drop_page
+    def get_links(self, drop_page=False):
+        # TODO
+        return self.links
+    @download_drop_page
+    def get_bref(self, drop_page=False):
+        # TODO
+        return self.links
+    @download_drop_page
+    def get_author_translator(self, drop_page=False):
+        # TODO
+        return self.links
 
 
     def __str__(self):
@@ -162,3 +197,30 @@ class DhsArticle:
             for a in DhsArticle.scrape_articles_from_search_url(url, rows_per_page, max_nb_articles_per_letter):
                 yield a
 
+
+"""
+Todo scraping
+- liens
+    - metagrid
+    - notices d'autorité (GND, viaf)
+- sources & bibliographie
+- en bref
+    - dates biographiques
+    - Endonyme(s)/Exonyme(s)
+    - variantes
+    - contexte
+- author & translator
+- citation suggestion
+
+
+- RaphyDallèves https://hls-dhs-dss.ch/fr/articles/042263/2003-02-03/
+    -> simple persone, SIKART source
+- Aa, rivière: https://hls-dhs-dss.ch/fr/articles/008746/2000-09-20/
+    -> variantes section
+- vaud https://hls-dhs-dss.ch/fr/articles/007395/2017-05-30/
+    -> lots of sources, source de texte brut
+- ville de zurich https://hls-dhs-dss.ch/fr/articles/000171/2015-01-25/
+    -> link as a source
+    -> endonymes/exonymes
+
+"""

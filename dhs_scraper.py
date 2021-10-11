@@ -197,10 +197,10 @@ class DhsArticle:
         articles_page_url = search_url+"0"
         articles_page = r.get(articles_page_url)
         tree = html.fromstring(articles_page.content)
-        articles_count = int(tree.cssselect(".hls-search-header__count")[0].text_content())
+        nb_search_pages = int(tree.cssselect(".pagination a:last-child")[0].text_content())
         if max_nb_articles is not None:
             articles_count = max_nb_articles
-        for search_page_number in range(0,math.ceil(articles_count/rows_per_page)+1):
+        for search_page_number in range(0,nb_search_pages+1):
             search_results = tree.cssselect(".search-result a")
             for i,c in enumerate(search_results):
                 article_index = search_page_number*rows_per_page+i
@@ -212,8 +212,8 @@ class DhsArticle:
                 page_url = c.xpath("@href")[0]
                 article = DhsArticle(url="https://hls-dhs-dss.ch"+page_url, name= cname)
                 yield article
-                sleep(BULK_DOWNLOAD_COOL_DOWN)
             articles_page_url = search_url+str(search_page_number*rows_per_page)
+            sleep(BULK_DOWNLOAD_COOL_DOWN)
             articles_page = r.get(articles_page_url)
             tree = html.fromstring(articles_page.content)
 

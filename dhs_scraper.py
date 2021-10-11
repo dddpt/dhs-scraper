@@ -24,9 +24,9 @@ def get_attributes_string(class_name, object_dict):
 def download_drop_page(func):
     """decorator to download page before func execution and,
     if asked, drop it just after"""
-    def inner(self,drop_page=False):
+    def inner(self,drop_page=False, *args, **kwargs):
         self.download_page()
-        result = func(self)
+        result = func(self, *args, **kwargs)
         if drop_page:
             self.drop_page()
         return result
@@ -67,27 +67,65 @@ class DhsArticle:
         del self._pagetree
 
     @download_drop_page
-    def get_text(self, drop_page=False):
+    def get_text(self):
         self.text = reduce(lambda s,el: s+el.text_content()+"\n\n", self._pagetree.cssselect(".hls-article-text-unit p"), "")[0:-2]
         return self.text
     @download_drop_page
-    def get_tags(self, drop_page=False):
-        self.tags = [{"tag":el.text_content(),"url":el.xpath("@href")[0]} for el in self._pagetree.cssselect(".hls-service-box-right a")]
+    def get_tags(self):
+        self.tags = [
+            {
+                "tag":el.text_content(),
+                "url":el.xpath("@href")[0]
+            } for el in self._pagetree.cssselect(".hls-service-box-right a")
+        ]
         return self.tags
     @download_drop_page
-    def get_sources(self, drop_page=False):
-        # TODO
+    def get_sources(self):
+        """
+        Sources are organized by section
+        content of a source:
+        - text (whole text)
+        - author (if present)
+        - publication (if present)
+        - link (if present, url to another website)
+        """
+        def parse_source(source_element):
+            text = source_element.text_content().strip()
+            authors = [au.text_content().strip() for au in source_element.cssselect(".au")]
+            title = [t.text_content().strip() for t in source_element.cssselect(".tpub")]
+            link = source_element.cssselect("a").xpath("@href")
+            source = {"text": text}
+            if len(authors)>0:
+                source["author"] = authors
+                if len(authors)>1:
+                    print(f"DhsArticle.get_sources(): more than one author for a source dhs-id:{self.id}, source: {text}")
+            if len(title)>0:
+                source["title"] = title
+                if len(title)>1:
+                    print(f"DhsArticle.get_sources(): more than one tpub for a source dhs-id:{self.id}, source: {text}")
+            if len(link)>0:
+                source["link"] = link
+                if len(link)>1:
+                    print(f"DhsArticle.get_sources(): more than one link for a source dhs-id:{self.id}, source: {text}")
+            return source
+
+        self.sources = {
+            section_element.cssselect(".panel-title")[0].text_content().strip(): [
+                parse_source(source_element)
+                for source_element in section_element.cssselect("li")]
+            for section_element in self._pagetree.cssselect("#_hls_references .panel")
+        }
         return self.sources
     @download_drop_page
-    def get_links(self, drop_page=False):
+    def get_links(self):
         # TODO
         return self.links
     @download_drop_page
-    def get_bref(self, drop_page=False):
+    def get_bref(self):
         # TODO
         return self.links
     @download_drop_page
-    def get_author_translator(self, drop_page=False):
+    def get_author_translator(self):
         # TODO
         return self.links
 

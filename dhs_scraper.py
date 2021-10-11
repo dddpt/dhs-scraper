@@ -347,7 +347,7 @@ class DhsArticle:
         article_ids = set()
         alphabet_url_basis = f"https://hls-dhs-dss.ch/{language}/search/alphabetic?text=*&sort=hls.title_sortString&sortOrder=asc&collapsed=true&r=1&rows=100&f_hls.letter_string="
         firstindex_arg_basis = "&firstIndex="
-        for letter in "QZY": #"ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+        for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
             print("Downloading articles starting with letter: "+letter)
             url = alphabet_url_basis+letter+firstindex_arg_basis
             for a in DhsArticle.scrape_articles_from_search_url(url, rows_per_page=100, max_nb_articles= max_nb_articles_per_letter, **kwargs):

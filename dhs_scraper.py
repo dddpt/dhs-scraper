@@ -1,7 +1,8 @@
 from functools import reduce
 import json
 import re
-import math
+from sys import stderr
+from traceback import print_exc
 from time import sleep
 
 from lxml import html
@@ -130,9 +131,14 @@ class DhsArticle:
                 if len(link)>1:
                     print(f"DhsArticle.parse_sources(): more than one link for a source dhs-id:{self.id}, source: {text}")
             return source
-
+        def get_section_title(section_element):
+            section_title = section_element.cssselect(".panel-title")
+            if len(section_title)>0:
+                return section_title[0].text_content().strip()
+            else:
+                return "default"
         self.sources = {
-            section_element.cssselect(".panel-title")[0].text_content().strip(): [
+            get_section_title(section_element): [
                 parse_source(source_element)
                 for source_element in section_element.cssselect("li")]
             for section_element in self._pagetree.cssselect("#_hls_references .panel")
@@ -185,7 +191,6 @@ class DhsArticle:
         - link ( if present)
         - birth and death (if title=="Dates biographiques")
         """
-        bref_box = self._pagetree.cssselect(".hls-service-box-right .hls-service-box-element:first-child")[0]
         def parse_bref_row(bref_row):
             bref_row_dict = {}
             bref_row_dict["title"] = bref_row.cssselect(".hls-service-box-table-title")[0].text_content().strip()
@@ -201,10 +206,12 @@ class DhsArticle:
                 if len(death_span)>0:
                     bref_row_dict["death"] = death_span[0].text_content().strip()
             return bref_row_dict
-        bref_title = bref_box.cssselect(".hls-service-box-title")[0].text_content().strip()
-        if bref_title=="En bref":
-            self.bref = [parse_bref_row(b) for b in bref_box.cssselect("tr")]
-        else:
+        bref_box = self._pagetree.cssselect(".hls-service-box-right .hls-service-box-element:first-child")
+        if len(bref_box)>0:
+            bref_title = bref_box[0].cssselect(".hls-service-box-title")
+            if len(bref_title)>0 and bref_title[0].text_content().strip()=="En bref":
+                self.bref = [parse_bref_row(b) for b in bref_box[0].cssselect("tr")]
+        if ("bref" not in self.__dict__) or not self.bref:
             self.bref=[]
         return self.bref
     @download_drop_page
@@ -327,7 +334,11 @@ class DhsArticle:
                     article.language = force_language
                 if parse_articles:
                     sleep(BULK_DOWNLOAD_COOL_DOWN)
-                    article.parse_article()
+                    try:
+                        article.parse_article()
+                    except Exception as e:
+                        print(f"ERROR PARSING ARTICLE WITH DHS-ID: {article.id}", file=stderr)
+                        print_exc(file=stderr)
                 if (not skip_duplicates) or article.id not in article_ids:
                     article_ids.add(article.id)
                     yield article
@@ -401,3 +412,4 @@ if False:
 
     amedee = DhsArticle(url="https://hls-dhs-dss.ch/fr/articles/017857/2013-04-04/")
     amedee.parse_article()
+# %%

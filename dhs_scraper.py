@@ -15,9 +15,11 @@ METAGRID_BASE_URL = "https://api.metagrid.ch/widget/dhs/person/<article_id>.json
 
 # %%
 
-article_id_version_regex = re.compile(r"/(\w+)?/?articles/(.+?)/(\d{4}-\d{2}-\d{2})?")
+# regex to extract dhs article id, version and language
+article_language_id_version_regex = re.compile(r"/(\w+)?/?articles/(.+?)/(\d{4}-\d{2}-\d{2})?")
 
 def get_attributes_string(class_name, object_dict):
+    """Unimportant utility function to format __str__() and __repr()"""
     return f"""{class_name}({', '.join([
         f"{str(k)}: {str(v)}"
         for k, v in object_dict.items()
@@ -38,10 +40,11 @@ def download_drop_page(func):
 
 class DhsArticle:
     def __init__(self, language=None, id=None, version=None, name=None, url=None):
-        """Creates a DhsArticle, must at least have the id or url argument not None
+        """Creates a DhsArticle, must at least have either the id or url argument set
         
         default language is german
         default version is latest
+        name is optional and is the name of the article in a search results list (not the one on top of the article itself, this one is the title)
         """
         if (not id) and (not url):
             raise Exception("DhsArticle.__init__(): at least one of id or url must be specified")
@@ -198,7 +201,7 @@ class DhsArticle:
             link = bref_row.cssselect(".hls-service-box-table-text a")
             if len(link)>0:
                 bref_row_dict["link"] = [l.get("href") for l in link]
-            if bref_row_dict["title"]=="Dates biographiques":
+            if bref_row_dict["title"] in ["Dates biographiques", "Lebensdaten", "Dati biografici"]:
                 birth_span = bref_row.cssselect(".hls-service-box-table-text span[itemProp=birthDate]")
                 if len(birth_span)>0:
                     bref_row_dict["birth"] = birth_span[0].text_content().strip()
@@ -209,7 +212,7 @@ class DhsArticle:
         bref_box = self._pagetree.cssselect(".hls-service-box-right .hls-service-box-element:first-child")
         if len(bref_box)>0:
             bref_title = bref_box[0].cssselect(".hls-service-box-title")
-            if len(bref_title)>0 and bref_title[0].text_content().strip()=="En bref":
+            if len(bref_title)>0 and bref_title[0].text_content().strip() in ["En bref","Kurzinformationen","Scheda informativa"]:
                 self.bref = [parse_bref_row(b) for b in bref_box[0].cssselect("tr")]
         if ("bref" not in self.__dict__) or not self.bref:
             self.bref=[]
@@ -284,7 +287,7 @@ class DhsArticle:
     @staticmethod
     def get_language_id_version_from_url(url):
         """returns (language, id, version) tuple from given dhs article url"""
-        article_id_version_match = article_id_version_regex.search(url)
+        article_id_version_match = article_language_id_version_regex.search(url)
         if article_id_version_match:
             return article_id_version_match.groups()
         else:

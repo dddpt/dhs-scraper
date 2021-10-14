@@ -17,6 +17,8 @@ METAGRID_BASE_URL = "https://api.metagrid.ch/widget/dhs/person/<article_id>.json
 
 # regex to extract dhs article id, version and language
 article_language_id_version_regex = re.compile(r"/(\w+)?/?articles/(.+?)/(\d{4}-\d{2}-\d{2})?")
+search_url_text_arg_regex = re.compile(r"\Wtext=(.+?)&")
+search_url_alphabet_letter_arg_regex = re.compile(r"\Wf_hls.letter_string=(.+?)&")
 
 def get_attributes_string(class_name, object_dict):
     """Unimportant utility function to format __str__() and __repr()"""
@@ -313,13 +315,25 @@ class DhsArticle:
         """
         if not already_visited_ids:
             already_visited_ids=set()
+
+        # extacting info on url for logging
+        search_text_match = search_url_text_arg_regex.search(search_url)
+        search_text = ("search query: "+search_text_match.group(1)+" ") if search_text_match else ""
+        az_letter_match = search_url_alphabet_letter_arg_regex.search(search_url)
+        az_letter = ("alphabet letter: "+az_letter_match.group(1)+" ") if az_letter_match else ""
+
+        # getting first page for nb of pages
         articles_page_url = search_url+"0"
         articles_page = r.get(articles_page_url)
         tree = html.fromstring(articles_page.content)
         pagination_last = tree.cssselect(".pagination a:last-child")
         nb_search_pages = int(pagination_last[0].text_content()) if len(pagination_last)>0 else 1
+        
+        # iterating over pages
         for search_page_number in range(0,nb_search_pages):
+            print(f"Loading search page nb {search_page_number} for "+search_text+az_letter)
             if search_page_number!=0:
+                # get the new page
                 articles_page_url = search_url+str(search_page_number*rows_per_page)
                 sleep(BULK_DOWNLOAD_COOL_DOWN)
                 articles_page = r.get(articles_page_url)
@@ -334,20 +348,20 @@ class DhsArticle:
                 # search-result__title
                 page_url = c.get("href")
                 article = DhsArticle(url="https://hls-dhs-dss.ch"+page_url, name= cname)
-                if force_language:
-                    article.language = force_language
-                if parse_articles:
-                    sleep(BULK_DOWNLOAD_COOL_DOWN)
-                    try:
-                        article.parse_article()
-                    except Exception as e:
-                        print(f"ERROR PARSING ARTICLE WITH DHS-ID: {article.id}", file=stderr)
-                        print_exc(file=stderr)
                 if (not skip_duplicates) or article.id not in already_visited_ids:
+                    if force_language:
+                        article.language = force_language
+                    if parse_articles:
+                        sleep(BULK_DOWNLOAD_COOL_DOWN)
+                        try:
+                            article.parse_article()
+                        except Exception as e:
+                            print(f"ERROR PARSING ARTICLE WITH DHS-ID: {article.id}", file=stderr)
+                            print_exc(file=stderr)
                     already_visited_ids.add(article.id)
                     yield article
                 else:
-                    print(f"DhsArticle.scrape_articles_from_search_url() skipping duplicate {article.id}")
+                    print(f"DhsArticle.scrape_articles_from_search_url() skipping duplicate {article.id}, name: {article.name}")
 
     @staticmethod
     def search_for_articles(keywords, language="fr", **kwargs):
@@ -363,7 +377,7 @@ class DhsArticle:
             already_visited_ids=set()
         alphabet_url_basis = f"https://hls-dhs-dss.ch/{language}/search/alphabetic?text=*&sort=hls.title_sortString&sortOrder=asc&collapsed=true&r=1&rows=100&f_hls.letter_string="
         firstindex_arg_basis = "&firstIndex="
-        for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+        for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ": # ABCDEFGHIJKLMNOPQRSTUVWXYZ
             print("Downloading articles starting with letter: "+letter)
             url = alphabet_url_basis+letter+firstindex_arg_basis
             for a in DhsArticle.scrape_articles_from_search_url(
@@ -372,9 +386,5 @@ class DhsArticle:
                         max_nb_articles= max_nb_articles_per_letter,
                         already_visited_ids = already_visited_ids,
                         **kwargs):
-                if (not skip_duplicates) or a.id not in already_visited_ids:
-                    already_visited_ids.add(a.id)
                     yield a
-                else:
-                    print(f"DhsArticle.scrape_all_articles() skipping duplicate {a.id}")
 

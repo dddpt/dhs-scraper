@@ -297,7 +297,7 @@ class DhsArticle:
 
     @staticmethod
     def scrape_articles_from_search_url(search_url, rows_per_page=20, max_nb_articles=None,
-                    parse_articles=False, force_language = None, skip_duplicates=True):
+                    parse_articles=False, force_language = None, skip_duplicates=True, already_visited_ids=None):
         """returns a list of DHS articles' names & URLs from a DHS search url
 
         rows_per_page is the value of the "rows" argument in the search_url, by default 20, better to set it to a 100
@@ -311,7 +311,8 @@ class DhsArticle:
         
         returns a generator of DhsArticle
         """
-        article_ids = set()
+        if not already_visited_ids:
+            already_visited_ids=set()
         articles_page_url = search_url+"0"
         articles_page = r.get(articles_page_url)
         tree = html.fromstring(articles_page.content)
@@ -342,8 +343,8 @@ class DhsArticle:
                     except Exception as e:
                         print(f"ERROR PARSING ARTICLE WITH DHS-ID: {article.id}", file=stderr)
                         print_exc(file=stderr)
-                if (not skip_duplicates) or article.id not in article_ids:
-                    article_ids.add(article.id)
+                if (not skip_duplicates) or article.id not in already_visited_ids:
+                    already_visited_ids.add(article.id)
                     yield article
                 else:
                     print(f"DhsArticle.scrape_articles_from_search_url() skipping duplicate {article.id}")
@@ -356,17 +357,23 @@ class DhsArticle:
         return DhsArticle.scrape_articles_from_search_url(search_url, rows_per_page=100, **kwargs)
 
     @staticmethod
-    def scrape_all_articles(language="fr", max_nb_articles_per_letter=None, skip_duplicates=True, **kwargs):
+    def scrape_all_articles(language="fr", max_nb_articles_per_letter=None, skip_duplicates=True, already_visited_ids=None, **kwargs):
         """Scrapes all articles from DHS"""
-        article_ids = set()
+        if not already_visited_ids:
+            already_visited_ids=set()
         alphabet_url_basis = f"https://hls-dhs-dss.ch/{language}/search/alphabetic?text=*&sort=hls.title_sortString&sortOrder=asc&collapsed=true&r=1&rows=100&f_hls.letter_string="
         firstindex_arg_basis = "&firstIndex="
         for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
             print("Downloading articles starting with letter: "+letter)
             url = alphabet_url_basis+letter+firstindex_arg_basis
-            for a in DhsArticle.scrape_articles_from_search_url(url, rows_per_page=100, max_nb_articles= max_nb_articles_per_letter, **kwargs):
-                if (not skip_duplicates) or a.id not in article_ids:
-                    article_ids.add(a.id)
+            for a in DhsArticle.scrape_articles_from_search_url(
+                        url, 
+                        rows_per_page=100,
+                        max_nb_articles= max_nb_articles_per_letter,
+                        already_visited_ids = already_visited_ids,
+                        **kwargs):
+                if (not skip_duplicates) or a.id not in already_visited_ids:
+                    already_visited_ids.add(a.id)
                     yield a
                 else:
                     print(f"DhsArticle.scrape_all_articles() skipping duplicate {a.id}")

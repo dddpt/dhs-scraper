@@ -1,5 +1,6 @@
 from functools import reduce
 import json
+from os import truncate
 import re
 from sys import stderr
 from traceback import print_exc
@@ -222,12 +223,18 @@ class DhsArticle:
     @download_drop_page
     def parse_tags(self):
         """Parses tags in a list of dict with "tag" and "url" keys"""
-        self.tags = [
-            {
-                "tag":el.text_content(),
-                "url":el.get("href")
-            } for el in self._pagetree.cssselect(".hls-service-box-right a")
-        ]
+        tags_box = self._pagetree.cssselect(".hls-service-box-right .hls-service-box-element:last-child")
+        if len(tags_box)>0:
+            tags_title = tags_box[0].cssselect(".hls-service-box-title")
+            if len(tags_title)>0 and tags_title[0].text_content().strip() in ["Indexation thématique","Systematik","Classificazione"]:
+                self.tags = [
+                    DhsTag(el.text_content(), el.get("href"))
+                    for el in tags_box[0].cssselect("a")
+                ]
+            else:
+                self.tags=[]
+        else:
+            self.tags=[]
         return self.tags
     @download_drop_page
     def parse_article(self):
@@ -247,13 +254,15 @@ class DhsArticle:
             odict["text"] = odict["text"][0:DHS_ARTICLE_TEXT_REPR_NB_CHAR]+" [...]"
         odict["page"] = "loaded" if self.page else "not loaded"
         if "tags" in odict and odict["tags"] is not None:
-            odict["tags"] = [t["tag"] for t in odict["tags"]]
+            odict["tags"] = [t.tag for t in odict["tags"]]
         return get_attributes_string("DhsArticle", odict)
     def __repr__(self):
         return self.__str__()
 
     def to_language(self, new_language):
         """Returns a new DhsArticle with new language"""
+        if new_language not in ["fr", "de", "it"]:
+            raise Exception(f"DhsArticle.to_language(): invalid target language: {new_language}, must be one of de, fr, it")
         return DhsArticle(new_language, self.id, self.version)
 
     def to_json(self, *args, **kwargs):
@@ -262,15 +271,19 @@ class DhsArticle:
         del json_dict["page"]
         del json_dict["_pagetree"]
         json_dict["url"] = self.url
+        if "tags" in json_dict: 
+            json_dict["tags"] = [t.to_json() for t in self.tags]
         jsonstr =  json.dumps(json_dict, *args, **kwargs)
         return jsonstr
     @staticmethod
     def from_json(json_dict):
         """Parses a DhsArticle from a dict obtained from json.loads()"""
         article = DhsArticle(json_dict["language"], json_dict["id"], json_dict["version"], json_dict["name"])
-        mandatory_props = {"language", "id", "version", "name", "url"}
+        if "tags" in json_dict:
+            article.tags = [DhsTag.from_json(jt) for jt in json_dict["tags"]]
+        done_props = {"language", "id", "version", "name", "url", "tags"}
         for k,v in json_dict.items():
-            if k not in mandatory_props:
+            if k not in done_props:
                 article.__dict__[k] = v
         return article
 
@@ -294,7 +307,6 @@ class DhsArticle:
             return article_id_version_match.groups()
         else:
             return (None, None, None)
-
 
 
     @staticmethod
@@ -338,6 +350,8 @@ class DhsArticle:
                 sleep(BULK_DOWNLOAD_COOL_DOWN)
                 articles_page = r.get(articles_page_url)
                 tree = html.fromstring(articles_page.content)
+            if max_nb_articles is not None and search_page_number*rows_per_page>=max_nb_articles:
+                break
             search_results = tree.cssselect(".search-result a")
             for i,c in enumerate(search_results):
                 article_index = search_page_number*rows_per_page+i
@@ -388,3 +402,52 @@ class DhsArticle:
                         **kwargs):
                     yield a
 
+    @staticmethod
+    def load_articles_from_jsonl(jsonl_filepath):
+        """Loads articles from a .jsonl file with one json DhsArticle per line"""
+        def load_article(line, i = 0):
+            try:
+                return DhsArticle.from_json(json.loads(line.strip()))
+            except Exception as e:
+                print(f"Exception loading DhsArticle from {i}th line:\n{line}")
+                raise e
+        with open(jsonl_filepath, "r") as dhs_all_json_file:
+            articles = list(load_article(line,i) for i,line in enumerate(dhs_all_json_file) if len(line)>0)
+        return articles
+
+class DhsTag:
+    """Defines a DHS tag with properties "tag" and "url"
+    
+    Implements equality and hash based on "tag" property, not url.
+    """
+    def __init__(self, tag, url):
+        self.tag = tag
+        self. url =  url
+    def get_levels(self):
+        return [l.strip() for l in self.tag.split("/")]
+    def get_level(self, level):
+        levels = self.get_levels()
+        if level<len(levels):
+            return levels[level]
+        return None
+    @property
+    def ftag(self):
+        """returns last tag level"""
+        return self.get_levels()[-1]
+    def __hash__(self) -> int:
+        return hash(self.tag)
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return other.tag==self.tag
+        #elif isinstance(other, str): # dangerous
+        #    return other==self.tag
+        return False
+    def __str__(self):
+        return f'DhsTag("{self.tag}")'
+    def __repr__(self):
+        return self.__str__()
+    def to_json(self):
+        return json.dumps(self.__dict__)
+    @staticmethod
+    def from_json(json_dict):
+        return DhsTag(json_dict["tag"].strip(), json_dict["url"])

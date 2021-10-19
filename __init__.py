@@ -1,1 +1,1 @@
-from .dhs_scraper import DhsArticle
+from .dhs_scraper import DhsArticle, DhsTag

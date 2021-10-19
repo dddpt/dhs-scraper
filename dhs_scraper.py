@@ -272,7 +272,7 @@ class DhsArticle:
         del json_dict["_pagetree"]
         json_dict["url"] = self.url
         if "tags" in json_dict: 
-            json_dict["tags"] = [t.to_json() for t in self.tags]
+            json_dict["tags"] = [t.to_json(as_dict=True) for t in self.tags]
         jsonstr =  json.dumps(json_dict, *args, **kwargs)
         return jsonstr
     @staticmethod
@@ -410,6 +410,8 @@ class DhsArticle:
                 return DhsArticle.from_json(json.loads(line.strip()))
             except Exception as e:
                 print(f"Exception loading DhsArticle from {i}th line:\n{line}")
+                import time
+                time.sleep(1)
                 raise e
         with open(jsonl_filepath, "r") as dhs_all_json_file:
             articles = list(load_article(line,i) for i,line in enumerate(dhs_all_json_file) if len(line)>0)
@@ -446,8 +448,11 @@ class DhsTag:
         return f'DhsTag("{self.tag}")'
     def __repr__(self):
         return self.__str__()
-    def to_json(self):
-        return json.dumps(self.__dict__)
+    def to_json(self, as_dict=False):
+        if as_dict:
+            return self.__dict__.copy()
+        else:
+            return json.dumps(self.__dict__)
     @staticmethod
     def from_json(json_dict):
-        return DhsTag(json_dict["tag"].strip(), json_dict["url"])
+        return DhsTag(json_dict["tag"], json_dict["url"])

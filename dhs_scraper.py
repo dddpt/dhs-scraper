@@ -20,6 +20,7 @@ METAGRID_BASE_URL = "https://api.metagrid.ch/widget/dhs/person/<article_id>.json
 article_language_id_version_regex = re.compile(r"/(\w+)?/?articles/(.+?)/(\d{4}-\d{2}-\d{2})?")
 search_url_text_arg_regex = re.compile(r"\Wtext=(.+?)&")
 search_url_alphabet_letter_arg_regex = re.compile(r"\Wf_hls.letter_string=(.+?)&")
+biographical_date_bref_row_titles = ["Dates biographiques", "Lebensdaten", "Dati biografici"]
 
 def get_attributes_string(class_name, object_dict):
     """Unimportant utility function to format __str__() and __repr()"""
@@ -73,6 +74,14 @@ class DhsArticle:
     def drop_page(self):
         self.page = None
         del self._pagetree
+
+    def is_person(self):
+        if "bref" in self.__dict__:
+            for b in self.bref:
+                if b["title"] in biographical_date_bref_row_titles:
+                    return True
+            return False
+        return None
 
     #<h1 id="HAa" class="hls-article-title wikigeneratedheader"><span><span class="hls-lemma" locale="fr">Aa</span></span></h1>
     @download_drop_page
@@ -204,7 +213,7 @@ class DhsArticle:
             link = bref_row.cssselect(".hls-service-box-table-text a")
             if len(link)>0:
                 bref_row_dict["link"] = [l.get("href") for l in link]
-            if bref_row_dict["title"] in ["Dates biographiques", "Lebensdaten", "Dati biografici"]:
+            if bref_row_dict["title"] in biographical_date_bref_row_titles:
                 birth_span = bref_row.cssselect(".hls-service-box-table-text span[itemProp=birthDate]")
                 if len(birth_span)>0:
                     bref_row_dict["birth"] = birth_span[0].text_content().strip()
@@ -258,6 +267,12 @@ class DhsArticle:
         return get_attributes_string("DhsArticle", odict)
     def __repr__(self):
         return self.__str__()
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.language, self.id, self.version)==(other.language, other.id, other.version)
+        return False
+    def __hash__(self):
+        return hash((self.language, self.id, self.version))
 
     def to_language(self, new_language):
         """Returns a new DhsArticle with new language"""
@@ -403,6 +418,31 @@ class DhsArticle:
                     yield a
 
     @staticmethod
+    def scrape_to_jsonl(jsonl_filepath, articles_generator, buffer_size=100):
+        """Scrapes articles to a jsonl file from an articles generator
+        
+        Uses a buffer to avoid disk usage"""
+        buffer = [None]*buffer_size
+        with open(jsonl_filepath, "a") as jsonl_file:
+            for i, a in enumerate(articles_generator):
+                if i!=0 and i%buffer_size==0:
+                    print(f"BUFFER OUT i: {i} \nbuffer[0]:{buffer[0]}\nbuffer[-1]:{buffer[-1]}")
+                    jsonl_file.write("\n".join(buffer)+"\n")
+                print(f"article {a.name}, i: {i}")
+                buffer[i%buffer_size]= a.to_json(ensure_ascii=False)
+            print(f"FINAL BUFFER OUT final i: {i}, i%buffer_size: {i%buffer_size} \nbuffer[0]:{buffer[0]}\nbuffer[{i%buffer_size}]:{buffer[i%buffer_size]}")
+            jsonl_file.write("\n".join(buffer[0:((i%buffer_size)+1)])+"\n")
+
+    @staticmethod
+    def get_already_visited_ids(jsonl_filepath):
+        """Returns a set containing the ids of all the articles present in the given jsonl
+        
+        Useful to relaunch a scrape after an interruption."""
+        article_id_regex = re.compile(r'^.+?"id": "(\d+)"')
+        with open(jsonl_filepath, "r") as jsonl_file:
+            return set(article_id_regex.search(line).group(1) for line in jsonl_file if len(line)>0)
+
+    @staticmethod
     def load_articles_from_jsonl(jsonl_filepath):
         """Loads articles from a .jsonl file with one json DhsArticle per line"""
         def load_article(line, i = 0):
@@ -413,8 +453,8 @@ class DhsArticle:
                 import time
                 time.sleep(1)
                 raise e
-        with open(jsonl_filepath, "r") as dhs_all_json_file:
-            articles = list(load_article(line,i) for i,line in enumerate(dhs_all_json_file) if len(line)>0)
+        with open(jsonl_filepath, "r") as jsonl_file:
+            articles = list(load_article(line,i) for i,line in enumerate(jsonl_file) if len(line)>0)
         return articles
 
 class DhsTag:
@@ -427,10 +467,12 @@ class DhsTag:
         self. url =  url
     def get_levels(self):
         return [l.strip() for l in self.tag.split("/")]
-    def get_level(self, level):
+    def get_level(self, level, default_to_last=False):
         levels = self.get_levels()
         if level<len(levels):
             return levels[level]
+        elif default_to_last:
+            return levels[-1]
         return None
     @property
     def ftag(self):

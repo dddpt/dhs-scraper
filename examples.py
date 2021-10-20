@@ -1,6 +1,6 @@
 # %%
 
-from dhs_scraper import DhsArticle
+from dhs_scraper import DhsArticle, stream_to_jsonl
 
 
 # %% 
@@ -33,14 +33,47 @@ bronschhofen_articles_search = DhsArticle.search_for_articles(
 
 # Loading 13 articles from a search url (here: all ecclesiastic entries)
 # # do not forget the &firstIndex= ending for the url
-ecclesiastic_entries = DhsArticle.scrape_articles_from_search_url(#scrape_all_articles(
+ecclesiastic_entries = DhsArticle.scrape_articles_from_search_url(
     "https://hls-dhs-dss.ch/fr/search/category?text=*&sort=score&sortOrder=desc&collapsed=true&r=1&rows=20&firstIndex=0&f_hls.lexicofacet_string=1%2F006800.009500.&firstIndex=",
     max_nb_articles=13
 )
 
 # %%
 
-# Download the text for all the bronschhofen articles
+# Download and parse all the article's elements for the bronschhofen articles
 for a in bronschhofen_articles_search:
-    a.get_text_and_tags() 
+    a.parse_article() 
+
 # %%
+
+
+# Stream search results to a jsonl file
+instruments_craftsmen_file = "instruments_craftsmen.jsonl"
+instruments_craftsmen = stream_to_jsonl(instruments_craftsmen_file,DhsArticle.scrape_articles_from_search_url(
+    "https://hls-dhs-dss.ch/fr/search/category?text=*&sort=score&sortOrder=desc&collapsed=true&r=1&rows=20&f_hls.lexicofacet_string=3%2F000100.132500.134600.135000.&firstIndex="
+))
+
+# Load articles back from a jsonl file
+jazzpeople = DhsArticle.load_articles_from_jsonl(jazzpeople_file)
+
+# %%
+
+# Scrape the whole french DHS and stream the articles on-the-fly to a jsonl file
+# If the output jsonl file already contains some articles, makes sure no duplicates are taken
+# The `jsonl_articles_content_file` file must already exist.
+if False:
+    language="fr"
+    jsonl_articles_content_file = f"dhs_all_articles_{language}.jsonl"
+    already_visited_ids_content = DhsArticle.get_already_visited_ids(jsonl_articles_content_file)
+    stream_to_jsonl(
+        jsonl_articles_content_file,
+        DhsArticle.scrape_all_articles(
+            language=language,
+            parse_articles = False,
+            force_language = language,
+            skip_duplicates = True,
+            already_visited_ids = already_visited_ids_content
+        ),
+        buffer_size=100
+    )
+

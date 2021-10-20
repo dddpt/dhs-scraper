@@ -1,6 +1,6 @@
 from functools import reduce
 import json
-from os import truncate
+from os import truncate, path
 import re
 from sys import stderr
 from traceback import print_exc
@@ -10,7 +10,7 @@ from lxml import html
 import pandas as pd
 import requests as r
 
-BULK_DOWNLOAD_COOL_DOWN = 0.5 # seconds
+BULK_DOWNLOAD_COOL_DOWN = 0.1 # seconds
 DHS_ARTICLE_TEXT_REPR_NB_CHAR = 100 # nb char of text displayed in DhsArticle representation
 METAGRID_BASE_URL = "https://api.metagrid.ch/widget/dhs/person/<article_id>.json?lang=<language>&include=true"
 
@@ -280,14 +280,18 @@ class DhsArticle:
             raise Exception(f"DhsArticle.to_language(): invalid target language: {new_language}, must be one of de, fr, it")
         return DhsArticle(new_language, self.id, self.version)
 
-    def to_json(self, *args, **kwargs):
+    def to_json(self, as_dict=False, *args, **kwargs):
         """Returns a json string serialization of this DhsArticle"""
         json_dict = self.__dict__.copy()
-        del json_dict["page"]
-        del json_dict["_pagetree"]
+        if "page" in json_dict:
+            del json_dict["page"]
+        if "_pagetree" in json_dict:
+            del json_dict["_pagetree"]
         json_dict["url"] = self.url
         if "tags" in json_dict: 
             json_dict["tags"] = [t.to_json(as_dict=True) for t in self.tags]
+        if as_dict:
+            return json_dict
         jsonstr =  json.dumps(json_dict, *args, **kwargs)
         return jsonstr
     @staticmethod
@@ -400,7 +404,7 @@ class DhsArticle:
         return DhsArticle.scrape_articles_from_search_url(search_url, rows_per_page=100, **kwargs)
 
     @staticmethod
-    def scrape_all_articles(language="fr", max_nb_articles_per_letter=None, skip_duplicates=True, already_visited_ids=None, **kwargs):
+    def scrape_all_articles(language="fr", max_nb_articles_per_letter=None, already_visited_ids=None, **kwargs):
         """Scrapes all articles from DHS"""
         if not already_visited_ids:
             already_visited_ids=set()
@@ -418,29 +422,16 @@ class DhsArticle:
                     yield a
 
     @staticmethod
-    def scrape_to_jsonl(jsonl_filepath, articles_generator, buffer_size=100):
-        """Scrapes articles to a jsonl file from an articles generator
-        
-        Uses a buffer to avoid disk usage"""
-        buffer = [None]*buffer_size
-        with open(jsonl_filepath, "a") as jsonl_file:
-            for i, a in enumerate(articles_generator):
-                if i!=0 and i%buffer_size==0:
-                    print(f"BUFFER OUT i: {i} \nbuffer[0]:{buffer[0]}\nbuffer[-1]:{buffer[-1]}")
-                    jsonl_file.write("\n".join(buffer)+"\n")
-                print(f"article {a.name}, i: {i}")
-                buffer[i%buffer_size]= a.to_json(ensure_ascii=False)
-            print(f"FINAL BUFFER OUT final i: {i}, i%buffer_size: {i%buffer_size} \nbuffer[0]:{buffer[0]}\nbuffer[{i%buffer_size}]:{buffer[i%buffer_size]}")
-            jsonl_file.write("\n".join(buffer[0:((i%buffer_size)+1)])+"\n")
-
-    @staticmethod
     def get_already_visited_ids(jsonl_filepath):
         """Returns a set containing the ids of all the articles present in the given jsonl
         
         Useful to relaunch a scrape after an interruption."""
-        article_id_regex = re.compile(r'^.+?"id": "(\d+)"')
-        with open(jsonl_filepath, "r") as jsonl_file:
-            return set(article_id_regex.search(line).group(1) for line in jsonl_file if len(line)>0)
+        if not path.isfile(jsonl_filepath):
+            return set()
+        else:
+            article_id_regex = re.compile(r'^.+?"id": "(\d+)"')
+            with open(jsonl_filepath, "r") as jsonl_file:
+                return set(article_id_regex.search(line).group(1) for line in jsonl_file if len(line)>0)
 
     @staticmethod
     def load_articles_from_jsonl(jsonl_filepath):
@@ -498,3 +489,18 @@ class DhsTag:
     @staticmethod
     def from_json(json_dict):
         return DhsTag(json_dict["tag"], json_dict["url"])
+
+
+def stream_to_jsonl(jsonl_filepath, jsonable_iterable, buffer_size=100):
+    """Saves jsonables to a jsonl file from an iterable/generator
+    
+    A jsonable is an object with a to_json() method
+    Useful to stream scraped articles to a jsonl on-the-fly and not keep them in memory.
+    Uses a buffer to avoid disk usage"""
+    buffer = [None]*buffer_size
+    with open(jsonl_filepath, "a") as jsonl_file:
+        for i, a in enumerate(jsonable_iterable):
+            if i!=0 and i%buffer_size==0:
+                jsonl_file.write("\n".join(buffer)+"\n")
+            buffer[i%buffer_size]= a.to_json(ensure_ascii=False)
+        jsonl_file.write("\n".join(buffer[0:((i%buffer_size)+1)])+"\n")

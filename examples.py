@@ -54,6 +54,7 @@ instruments_craftsmen = stream_to_jsonl(instruments_craftsmen_file,DhsArticle.sc
 ))
 
 # Load articles back from a jsonl file
+jazzpeople_file = "jazzpeople.jsonl"
 jazzpeople = DhsArticle.load_articles_from_jsonl(jazzpeople_file)
 
 # %%

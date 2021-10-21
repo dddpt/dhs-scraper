@@ -18,8 +18,8 @@ schmerikon = DhsArticle(url="https://hls-dhs-dss.ch/fr/articles/001373/2011-08-1
 # %%
 
 # A DhsArticle initially contains only its language, id, version data
-# to load the actual content of the article, use get_text_and_tags()
-schneckenbundgericht.get_text_and_tags()
+# to load the actual content of the article, use parse_article()
+schneckenbundgericht.parse_article()
 
 # %%
 

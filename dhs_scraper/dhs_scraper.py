@@ -7,7 +7,6 @@ from traceback import print_exc
 from time import sleep
 
 from lxml import html
-import pandas as pd
 import requests as r
 
 BULK_DOWNLOAD_COOL_DOWN = 0.1 # seconds
@@ -20,6 +19,7 @@ METAGRID_BASE_URL = "https://api.metagrid.ch/widget/dhs/person/<article_id>.json
 article_language_id_version_regex = re.compile(r"/(\w+)?/?articles/(.+?)/(\d{4}-\d{2}-\d{2})?")
 search_url_text_arg_regex = re.compile(r"\Wtext=(.+?)&")
 search_url_alphabet_letter_arg_regex = re.compile(r"\Wf_hls.letter_string=(.+?)&")
+article_jsonl_id_regex = re.compile(r'^.+?"id": "(\d+)"')
 biographical_date_bref_row_titles = ["Dates biographiques", "Lebensdaten", "Dati biografici"]
 
 def get_attributes_string(class_name, object_dict):
@@ -429,13 +429,14 @@ class DhsArticle:
         if not path.isfile(jsonl_filepath):
             return set()
         else:
-            article_id_regex = re.compile(r'^.+?"id": "(\d+)"')
             with open(jsonl_filepath, "r") as jsonl_file:
-                return set(article_id_regex.search(line).group(1) for line in jsonl_file if len(line)>0)
+                return set(article_jsonl_id_regex.search(line).group(1) for line in jsonl_file if len(line)>0)
 
     @staticmethod
-    def load_articles_from_jsonl(jsonl_filepath):
-        """Loads articles from a .jsonl file with one json DhsArticle per line"""
+    def load_articles_from_jsonl(jsonl_filepath, id_filter=set()):
+        """Loads articles from a .jsonl file with one json DhsArticle per line
+        
+        id_filter list (or preferably a set) of ids to load, avoids to parse unwanted articles"""
         def load_article(line, i = 0):
             try:
                 return DhsArticle.from_json(json.loads(line.strip()))
@@ -447,7 +448,12 @@ class DhsArticle:
         with open(jsonl_filepath, "r") as jsonl_file:
             for i,line in enumerate(jsonl_file):
                 if len(line)>0:
-                    yield load_article(line,i) 
+                    parse_line = True
+                    if len(id_filter)>0:
+                        article_id = article_jsonl_id_regex.search(line).group(1)
+                        parse_line = article_id in id_filter
+                    if parse_line:
+                        yield load_article(line,i) 
 
 class DhsTag:
     """Defines a DHS tag with properties "tag" and "url"

@@ -445,8 +445,9 @@ class DhsArticle:
                 time.sleep(1)
                 raise e
         with open(jsonl_filepath, "r") as jsonl_file:
-            articles = list(load_article(line,i) for i,line in enumerate(jsonl_file) if len(line)>0)
-        return articles
+            for i,line in enumerate(jsonl_file):
+                if len(line)>0:
+                    yield load_article(line,i) 
 
 class DhsTag:
     """Defines a DHS tag with properties "tag" and "url"

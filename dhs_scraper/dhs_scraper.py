@@ -9,7 +9,7 @@ from time import sleep
 from lxml import html
 import requests as r
 
-BULK_DOWNLOAD_COOL_DOWN = 0.1 # seconds
+BULK_DOWNLOAD_COOL_DOWN = 0.5 # seconds
 DHS_ARTICLE_TEXT_REPR_NB_CHAR = 100 # nb char of text displayed in DhsArticle representation
 METAGRID_BASE_URL = "https://api.metagrid.ch/widget/dhs/person/<article_id>.json?lang=<language>&include=true"
 
@@ -433,10 +433,12 @@ class DhsArticle:
                 return set(article_jsonl_id_regex.search(line).group(1) for line in jsonl_file if len(line)>0)
 
     @staticmethod
-    def load_articles_from_jsonl(jsonl_filepath, ids_to_keep=set()):
+    def load_articles_from_jsonl(jsonl_filepath, ids_to_keep=set(), indices_to_keep=set()):
         """Loads articles from a .jsonl file with one json DhsArticle per line
         
-        id_filter list (or preferably a set) of ids to load, avoids to parse unwanted articles"""
+        ids_to_keep: list (or preferably a set) of dhs articles' ids to load, avoids to parse unwanted articles
+        indices_to_keep: set of indices to load, useful for random sampling, overrides ids_to_keep
+        """
         def load_article(line, i = 0):
             try:
                 return DhsArticle.from_json(json.loads(line.strip()))
@@ -452,6 +454,8 @@ class DhsArticle:
                     if len(ids_to_keep)>0:
                         article_id = article_jsonl_id_regex.search(line).group(1)
                         parse_line = article_id in ids_to_keep
+                    if len(indices_to_keep)>0:
+                        parse_line = i in indices_to_keep
                     if parse_line:
                         yield load_article(line,i) 
 

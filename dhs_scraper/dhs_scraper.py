@@ -13,6 +13,8 @@ BULK_DOWNLOAD_COOL_DOWN = 0.5 # seconds
 DHS_ARTICLE_TEXT_REPR_NB_CHAR = 100 # nb char of text displayed in DhsArticle representation
 METAGRID_BASE_URL = "https://api.metagrid.ch/widget/dhs/person/<article_id>.json?lang=<language>&include=true"
 
+TOTAL_NB_DHS_ARTICLES = 36355 # in FR dhs as of 01.11.2021
+
 # %%
 
 # regex to extract dhs article id, version and language
@@ -422,15 +424,18 @@ class DhsArticle:
                     yield a
 
     @staticmethod
-    def get_already_visited_ids(jsonl_filepath):
-        """Returns a set containing the ids of all the articles present in the given jsonl
+    def get_articles_ids(jsonl_filepath):
+        """Returns an iterable containing the ids of all the articles present in the given jsonl
         
         Useful to relaunch a scrape after an interruption."""
-        if not path.isfile(jsonl_filepath):
-            return set()
-        else:
+        if path.isfile(jsonl_filepath):
             with open(jsonl_filepath, "r") as jsonl_file:
-                return set(article_jsonl_id_regex.search(line).group(1) for line in jsonl_file if len(line)>0)
+                for line in jsonl_file:
+                    if len(line)>0:
+                        yield article_jsonl_id_regex.search(line).group(1)
+        else:
+            print(f"DhsArticle.get_articles_ids(): no file found at path '{jsonl_filepath}'. returning empty generator")
+            return
 
     @staticmethod
     def load_articles_from_jsonl(jsonl_filepath, ids_to_keep=set(), indices_to_keep=set()):
@@ -457,7 +462,7 @@ class DhsArticle:
                     if len(indices_to_keep)>0:
                         parse_line = i in indices_to_keep
                     if parse_line:
-                        yield load_article(line,i) 
+                        yield load_article(line,i)
 
 class DhsTag:
     """Defines a DHS tag with properties "tag" and "url"

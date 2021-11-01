@@ -65,7 +65,7 @@ jazzpeople = DhsArticle.load_articles_from_jsonl(jazzpeople_file)
 if False:
     language="fr"
     jsonl_articles_content_file = f"dhs_all_articles_{language}.jsonl"
-    already_visited_ids_content = DhsArticle.get_already_visited_ids(jsonl_articles_content_file)
+    already_visited_ids_content = set(DhsArticle.get_articles_ids(jsonl_articles_content_file))
     stream_to_jsonl(
         jsonl_articles_content_file,
         DhsArticle.scrape_all_articles(

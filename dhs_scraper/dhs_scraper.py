@@ -23,6 +23,7 @@ search_url_text_arg_regex = re.compile(r"\Wtext=(.+?)&")
 search_url_alphabet_letter_arg_regex = re.compile(r"\Wf_hls.letter_string=(.+?)&")
 article_jsonl_id_regex = re.compile(r'^.+?"id": "(\d+)"')
 biographical_date_bref_row_titles = ["Dates biographiques", "Lebensdaten", "Dati biografici"]
+bref_section_titles = ["En bref","Kurzinformationen","Scheda informativa"]
 
 def get_attributes_string(class_name, object_dict):
     """Unimportant utility function to format __str__() and __repr()"""
@@ -45,16 +46,16 @@ def download_drop_page(func):
 # %%
 
 class DhsArticle:
-    def __init__(self, language=None, id=None, version=None, name=None, url=None):
+    def __init__(self, language=None, id=None, version=None, search_result_name=None, url=None):
         """Creates a DhsArticle, must at least have either the id or url argument set
         
         default language is german
         default version is latest
-        name is optional and is the name of the article in a search results list (not the one on top of the article itself, this one is the title)
+        search_result_name is optional and is the name of the article in a search results list (not the one on top of the article itself, this one is the title)
         """
         if (not id) and (not url):
             raise Exception("DhsArticle.__init__(): at least one of id or url must be specified")
-        self.name=name
+        self.search_result_name=search_result_name
         if (not id) and url:
             language, id, version = DhsArticle.get_language_id_version_from_url(url)
             if not id:
@@ -90,7 +91,7 @@ class DhsArticle:
     def parse_title(self):
         """Parses title of the article as seen on article page. Adds self.title, and for people, self.given_name and self.family_name
         
-        Do not confuse self.title with self.name (name found in search result lists, should be removed?)"""
+        Do not confuse self.title with self.search_result_name (name found in search result lists, should be removed?)"""
         title_element = self._pagetree.cssselect(".hls-article-title")[0]
         self.title = " ".join([c.text_content().strip() for c in title_element.getchildren()[0].getchildren()])
         given_name = title_element.cssselect("span[itemprop=givenName]")
@@ -226,7 +227,7 @@ class DhsArticle:
         bref_box = self._pagetree.cssselect(".hls-service-box-right .hls-service-box-element:first-child")
         if len(bref_box)>0:
             bref_title = bref_box[0].cssselect(".hls-service-box-title")
-            if len(bref_title)>0 and bref_title[0].text_content().strip() in ["En bref","Kurzinformationen","Scheda informativa"]:
+            if len(bref_title)>0 and bref_title[0].text_content().strip() in bref_section_titles:
                 self.bref = [parse_bref_row(b) for b in bref_box[0].cssselect("tr")]
         if ("bref" not in self.__dict__) or not self.bref:
             self.bref=[]
@@ -396,7 +397,7 @@ class DhsArticle:
                     already_visited_ids.add(article.id)
                     yield article
                 else:
-                    print(f"DhsArticle.scrape_articles_from_search_url() skipping duplicate {article.id}, name: {article.name}")
+                    print(f"DhsArticle.scrape_articles_from_search_url() skipping duplicate {article.id}, name: {article.search_result_name}")
 
     @staticmethod
     def search_for_articles(keywords, language="fr", **kwargs):

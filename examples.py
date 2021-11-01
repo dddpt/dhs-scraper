@@ -5,10 +5,13 @@ from dhs_scraper import DhsArticle, stream_to_jsonl
 
 # %% 
 
-# get an article from its unique triple identifier: fr, dhs id and version.
+# get an article from its unique triple identifier: language, dhs id and version.
 # If no version given, it is assumed to be the latest one
 # Here, this corresponds to the page: https://hls-dhs-dss.ch/fr/articles/029462/2016-11-23/
 schneckenbundgericht = DhsArticle("fr", "029462", "2016-11-23")
+schneckenbundgericht.language
+schneckenbundgericht.id
+schneckenbundgericht.version
 
 # %%
 
@@ -20,6 +23,16 @@ schmerikon = DhsArticle(url="https://hls-dhs-dss.ch/fr/articles/001373/2011-08-1
 # A DhsArticle initially contains only its language, id, version data
 # to load the actual content of the article, use parse_article()
 schneckenbundgericht.parse_article()
+schneckenbundgericht.title # title of the article
+schneckenbundgericht.text # text of the article
+schneckenbundgericht.bref # list of elements in the "En bref"/"Kurzinformationen"/"Scheda informativa" section of an article
+schneckenbundgericht.authors_translators # authors/translators of the article
+schneckenbundgericht.sources # sources from "Sources et bibliographie"/"Quellen und Literatur"/"Riferimenti bibliografici" section
+schneckenbundgericht.metagrid_id # id on the metagrid network, see https://metagrid.ch/
+schneckenbundgericht.metagrid_links # links to other databases from metagrid 
+schneckenbundgericht.notice_links # links from section "Notices d'autorité"/"Normdateien"/"Controllo di autorità"
+schneckenbundgericht.tags # internal DHS links from section "Indexation thématique"/"Systematik"/"Classificazione"
+
 
 # %%
 

@@ -30,10 +30,10 @@ schneckenbundgericht.bref # list of elements in the "En bref"/"Kurzinformationen
 schneckenbundgericht.authors_translators # authors/translators of the article
 schneckenbundgericht.sources # sources from "Sources et bibliographie"/"Quellen und Literatur"/"Riferimenti bibliografici" section
 schneckenbundgericht.metagrid_id # id on the metagrid network, see https://metagrid.ch/
-schneckenbundgericht.metagrid_links # links to other databases from metagrid 
+schneckenbundgericht.metagrid_links # links from metagrid to other databases 
 schneckenbundgericht.notice_links # links from section "Notices d'autorité"/"Normdateien"/"Controllo di autorità"
 schneckenbundgericht.tags # internal DHS links from section "Indexation thématique"/"Systematik"/"Classificazione"
-schneckenbundgericht.initial # initial of the article subject used in the article text (in article text "Zurich" is referred to with "Z."), can be None
+schneckenbundgericht.initial # initial of the article subject used in the article text (in article text "Zurich" is referred to with "Z." in text), can be None
 
 # %%
 
@@ -47,6 +47,12 @@ if georges.is_person():
     georges.birth_date
     georges.death_date
 
+# Things that aren't parsed but we would like to add:
+# - in-text links
+# - italic text
+# - data tables
+# - images/media and their captions
+# - section titles
 
 # %%
 

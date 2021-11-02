@@ -5,7 +5,7 @@ The aim of this repo is simple: providing a simple scraper for the [Swiss Histor
 `examples.py` shows simple examples to get you started.
 Look at `dhs_scraper/dhs_scraper.py` for more details.
 
-Can be directly installed using pip over https:
+Can be directly installed using pip over git+https:
 ```
 pip install git+https://github.com/dddpt/dhs-scraper.git
 ```

@@ -292,23 +292,23 @@ class DhsArticle:
         title_initials = [s[0] for s in self.title.split(" ") if s[0].isupper()]
 
         if len(text_initials)==0:
-            return None
+            self._initial = None
         elif len(text_initials)==1:
             if text_initials.index[0] in title_initials:
-                return text_initials.index[0]
+                self._initial = text_initials.index[0]
             else:
-                return None
+                self._initial = None
         elif len(text_initials)>1:
             most_present_in_title = text_initials.index[0]
             is_most_present_in_title = most_present_in_title in title_initials
             second_most_present_in_title = text_initials.index[1]
             is_second_most_present_in_title = second_most_present_in_title in title_initials
             if is_most_present_in_title and (not is_second_most_present_in_title):
-                return most_present_in_title
+                self._initial = most_present_in_title
             elif (not is_most_present_in_title) and is_second_most_present_in_title:
-                return second_most_present_in_title
+                self._initial = second_most_present_in_title
             elif (not is_most_present_in_title) and (not is_second_most_present_in_title):
-                return None
+                self._initial = None
             elif is_most_present_in_title and is_second_most_present_in_title:
                 # pick one that is last in title
                 chosen = None
@@ -322,11 +322,12 @@ class DhsArticle:
                 raise Exception(f"DhsArticle.parse_identifying_initial(): UNCOVERED EDGE CASE FOR MORE THAN ONE INITIAL IN TEXT, article:\n{self.title}\n{self.url}\n{self.language}\n{self.id}\n{self.version}")
         else:
             raise Exception(f"DhsArticle.parse_identifying_initial(): UNCOVERED EDGE CASE, article:\n{self.title}\n{self.url}\n{self.language}\n{self.id}\n{self.version}")
+        return self._initial
 
     @property
     def initial(self):
         if "_initial" not in self.__dict__:
-            self._initial = self.parse_identifying_initial()
+            self.parse_identifying_initial()
         return self._initial
 
     def __str__(self):

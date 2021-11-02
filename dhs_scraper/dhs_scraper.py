@@ -7,7 +7,7 @@ from traceback import print_exc
 from time import sleep
 
 from lxml import html
-from pandas import Series
+import pandas as pd#from pandas import Series
 import requests as r
 
 BULK_DOWNLOAD_COOL_DOWN = 0.5 # seconds
@@ -221,16 +221,20 @@ class DhsArticle:
             if bref_row_dict["title"] in biographical_date_bref_row_titles:
                 birth_span = bref_row.cssselect(".hls-service-box-table-text span[itemProp=birthDate]")
                 if len(birth_span)>0:
-                    bref_row_dict["birth"] = birth_span[0].text_content().strip()
+                    bref_row_dict["birth_date"] = birth_span[0].text_content().strip()
                 death_span = bref_row.cssselect(".hls-service-box-table-text span[itemProp=deathDate]")
                 if len(death_span)>0:
-                    bref_row_dict["death"] = death_span[0].text_content().strip()
+                    bref_row_dict["death_date"] = death_span[0].text_content().strip()
             return bref_row_dict
         bref_box = self._pagetree.cssselect(".hls-service-box-right .hls-service-box-element:first-child")
         if len(bref_box)>0:
             bref_title = bref_box[0].cssselect(".hls-service-box-title")
             if len(bref_title)>0 and bref_title[0].text_content().strip() in bref_section_titles:
                 self.bref = [parse_bref_row(b) for b in bref_box[0].cssselect("tr")]
+            for bref_row_dict in self.bref:
+                if bref_row_dict["title"] in biographical_date_bref_row_titles:
+                    self.birth_date = bref_row_dict["birth_date"]
+                    self.death_date = bref_row_dict["death_date"]
         if ("bref" not in self.__dict__) or not self.bref:
             self.bref=[]
         return self.bref
@@ -280,28 +284,31 @@ class DhsArticle:
         to a word in the title. Those are people: the correct initial is the 
         last name one, the one corresponding to the last word in the title.
         """
-        text_initials = Series(article_text_initial_regex.findall(self.text)).value_counts()
+        if "text" not in self.__dict__:
+            self.parse_text()
+        if "title" not in self.__dict__:
+            self.parse_title()
+        text_initials = pd.Series(article_text_initial_regex.findall(self.text), dtype="U").value_counts()
+        title_initials = [s[0] for s in self.title.split(" ") if s[0].isupper()]
 
         if len(text_initials)==0:
-            self._initial = None
-
-        title_initials = [s[0] for s in self.title.split(" ") if s[0].isupper()]
-        if len(text_initials)==1:
+            return None
+        elif len(text_initials)==1:
             if text_initials.index[0] in title_initials:
-                self._initial = text_initials.index[0]
+                return text_initials.index[0]
             else:
-                self._initial = None
+                return None
         elif len(text_initials)>1:
             most_present_in_title = text_initials.index[0]
             is_most_present_in_title = most_present_in_title in title_initials
             second_most_present_in_title = text_initials.index[1]
             is_second_most_present_in_title = second_most_present_in_title in title_initials
             if is_most_present_in_title and (not is_second_most_present_in_title):
-                self._initial = most_present_in_title
+                return most_present_in_title
             elif (not is_most_present_in_title) and is_second_most_present_in_title:
-                self._initial = second_most_present_in_title
+                return second_most_present_in_title
             elif (not is_most_present_in_title) and (not is_second_most_present_in_title):
-                self._initial = None
+                return None
             elif is_most_present_in_title and is_second_most_present_in_title:
                 # pick one that is last in title
                 chosen = None
@@ -310,17 +317,16 @@ class DhsArticle:
                         chosen = most_present_in_title
                     if i==second_most_present_in_title:
                         chosen = second_most_present_in_title
-                self._initial = chosen
+                return chosen
             else:
-                raise Exception(f"DhsArticle.get_article_identifying_initial(): UNCOVERED EDGE CASE FOR MORE THAN ONE INITIAL IN TEXT, article:\n{self.title}\n{self.url}\n{self.language}\n{self.id}\n{self.version}")
+                raise Exception(f"DhsArticle.parse_identifying_initial(): UNCOVERED EDGE CASE FOR MORE THAN ONE INITIAL IN TEXT, article:\n{self.title}\n{self.url}\n{self.language}\n{self.id}\n{self.version}")
         else:
-            raise Exception(f"DhsArticle.get_article_identifying_initial(): UNCOVERED EDGE CASE, article:\n{self.title}\n{self.url}\n{self.language}\n{self.id}\n{self.version}")
-        return self._initial
+            raise Exception(f"DhsArticle.parse_identifying_initial(): UNCOVERED EDGE CASE, article:\n{self.title}\n{self.url}\n{self.language}\n{self.id}\n{self.version}")
 
     @property
     def initial(self):
         if "_initial" not in self.__dict__:
-            self.parse_identifying_initial()
+            self._initial = self.parse_identifying_initial()
         return self._initial
 
     def __str__(self):

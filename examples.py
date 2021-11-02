@@ -1,6 +1,7 @@
 # %%
 
 from dhs_scraper import DhsArticle, stream_to_jsonl
+from lxml import get_include
 
 
 # %% 
@@ -16,7 +17,7 @@ schneckenbundgericht.version
 # %%
 
 # possible to create it directly from url too.
-schmerikon = DhsArticle(url="https://hls-dhs-dss.ch/fr/articles/001373/2011-08-10/")
+georges = DhsArticle(url="https://hls-dhs-dss.ch/fr/articles/044820/2011-12-08/")
 
 # %%
 
@@ -32,7 +33,20 @@ schneckenbundgericht.metagrid_id # id on the metagrid network, see https://metag
 schneckenbundgericht.metagrid_links # links to other databases from metagrid 
 schneckenbundgericht.notice_links # links from section "Notices d'autorité"/"Normdateien"/"Controllo di autorità"
 schneckenbundgericht.tags # internal DHS links from section "Indexation thématique"/"Systematik"/"Classificazione"
-schneckenbundgericht.initial # initial of the article subject used in the article text (in article text "Zurich" is referred to with "Z.")
+schneckenbundgericht.initial # initial of the article subject used in the article text (in article text "Zurich" is referred to with "Z."), can be None
+
+# %%
+
+# articles about people have extra fields that get parsed:
+# - given name and family name (from title)
+# - birth and death date (from bref section)
+georges.parse_article()
+if georges.is_person():
+    georges.given_name
+    georges.family_name
+    georges.birth_date
+    georges.death_date
+
 
 # %%
 

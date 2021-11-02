@@ -32,7 +32,7 @@ schneckenbundgericht.metagrid_id # id on the metagrid network, see https://metag
 schneckenbundgericht.metagrid_links # links to other databases from metagrid 
 schneckenbundgericht.notice_links # links from section "Notices d'autorité"/"Normdateien"/"Controllo di autorità"
 schneckenbundgericht.tags # internal DHS links from section "Indexation thématique"/"Systematik"/"Classificazione"
-
+schneckenbundgericht.initial # initial of the article subject used in the article text (in article text "Zurich" is referred to with "Z.")
 
 # %%
 

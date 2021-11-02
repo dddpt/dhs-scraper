@@ -7,6 +7,7 @@ from traceback import print_exc
 from time import sleep
 
 from lxml import html
+from pandas import Series
 import requests as r
 
 BULK_DOWNLOAD_COOL_DOWN = 0.5 # seconds
@@ -22,6 +23,7 @@ article_language_id_version_regex = re.compile(r"/(\w+)?/?articles/(.+?)/(\d{4}-
 search_url_text_arg_regex = re.compile(r"\Wtext=(.+?)&")
 search_url_alphabet_letter_arg_regex = re.compile(r"\Wf_hls.letter_string=(.+?)&")
 article_jsonl_id_regex = re.compile(r'^.+?"id": "(\d+)"')
+article_text_initial_regex = re.compile(r" ([A-Z])\.\W")
 biographical_date_bref_row_titles = ["Dates biographiques", "Lebensdaten", "Dati biografici"]
 bref_section_titles = ["En bref","Kurzinformationen","Scheda informativa"]
 
@@ -259,6 +261,67 @@ class DhsArticle:
         self.parse_notice_links()
         self.parse_bref()
         self.parse_tags()
+
+    def parse_identifying_initial(self):
+        """Parses the letter being the identifying initial of the article using regex heuristics
+        
+        In articles' text, the subject of the article is usually referred with a single
+        initial of the form " X.", where X is any capital letter.
+
+        There are 4 cases:
+        - no initial in text: return None
+        - 1 initial in text which isn't in title initials: return None
+        - 1 initial in text which is in title (>90% of articles)
+        - more than one initial in the text, and only the most present in
+        the text corresponds to a word in the article title -> use this one
+        - more than one initial in the text, and only the second most present is 
+        in the title: the most present one is an artifact, use the second most present one
+        - more than one initial in the text, and the two most present correspond
+        to a word in the title. Those are people: the correct initial is the 
+        last name one, the one corresponding to the last word in the title.
+        """
+        text_initials = Series(article_text_initial_regex.findall(self.text)).value_counts()
+
+        if len(text_initials)==0:
+            self._initial = None
+
+        title_initials = [s[0] for s in self.title.split(" ") if s[0].isupper()]
+        if len(text_initials)==1:
+            if text_initials.index[0] in title_initials:
+                self._initial = text_initials.index[0]
+            else:
+                self._initial = None
+        elif len(text_initials)>1:
+            most_present_in_title = text_initials.index[0]
+            is_most_present_in_title = most_present_in_title in title_initials
+            second_most_present_in_title = text_initials.index[1]
+            is_second_most_present_in_title = second_most_present_in_title in title_initials
+            if is_most_present_in_title and (not is_second_most_present_in_title):
+                self._initial = most_present_in_title
+            elif (not is_most_present_in_title) and is_second_most_present_in_title:
+                self._initial = second_most_present_in_title
+            elif (not is_most_present_in_title) and (not is_second_most_present_in_title):
+                self._initial = None
+            elif is_most_present_in_title and is_second_most_present_in_title:
+                # pick one that is last in title
+                chosen = None
+                for i in title_initials:
+                    if i==most_present_in_title:
+                        chosen = most_present_in_title
+                    if i==second_most_present_in_title:
+                        chosen = second_most_present_in_title
+                self._initial = chosen
+            else:
+                raise Exception(f"DhsArticle.get_article_identifying_initial(): UNCOVERED EDGE CASE FOR MORE THAN ONE INITIAL IN TEXT, article:\n{self.title}\n{self.url}\n{self.language}\n{self.id}\n{self.version}")
+        else:
+            raise Exception(f"DhsArticle.get_article_identifying_initial(): UNCOVERED EDGE CASE, article:\n{self.title}\n{self.url}\n{self.language}\n{self.id}\n{self.version}")
+        return self._initial
+
+    @property
+    def initial(self):
+        if "_initial" not in self.__dict__:
+            self.parse_identifying_initial()
+        return self._initial
 
     def __str__(self):
         odict = self.__dict__.copy()

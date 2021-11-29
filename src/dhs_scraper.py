@@ -74,8 +74,8 @@ class DhsArticle:
     def download_page_content(self):
         if not self.page_content:
             page = r.get(self.url)
-            self.page_content = page.content
-            self._pagetree = html.fromstring(self.page_content)
+            self.page_content = page.content.decode()
+        self._pagetree = html.fromstring(self.page_content)
         return self.page_content
     def drop_page(self):
         self.page_content = None
@@ -110,10 +110,22 @@ class DhsArticle:
         self.authors_translators = [au.text_content().strip() for au in self._pagetree.cssselect(".hls-article-text-author")]
         return self.authors_translators
     @download_drop_page
+    def get_page_text_elements(self):
+        # remove .media-content elements as they contain non-text <p> tags
+        to_remove_elements = self._pagetree.cssselect(".media-content")
+        for tre in to_remove_elements:
+            tre.getparent().remove(tre)
+        # text elements are p, h1-4
+        elements = self._pagetree.cssselect(".hls-article-text-unit p, h1, h2, .hls-article-text-unit h3, .hls-article-text-unit h4")
+        # reparse _pagetree as we removed some elements from it.
+        self._pagetree = html.fromstring(self.page_content)
+        return elements
+    @download_drop_page
     def parse_text(self):
         """parses text of the article and adds it in self.text
         Usually doesn't get data table, only their title"""
-        self.text = reduce(lambda s,el: s+el.text_content()+"\n\n", self._pagetree.cssselect(".hls-article-text-unit p"), "")[0:-2]
+        text_elements = self.get_page_text_elements()
+        self.text = reduce(lambda s,el: s+el.text_content()+"\n\n", text_elements, "")[0:-2]
         return self.text
     @download_drop_page
     def parse_sources(self):
@@ -235,8 +247,10 @@ class DhsArticle:
                 self.bref = [parse_bref_row(b) for b in bref_box[0].cssselect("tr")]
             for bref_row_dict in self.bref:
                 if bref_row_dict["title"] in biographical_date_bref_row_titles:
-                    self.birth_date = bref_row_dict["birth_date"]
-                    self.death_date = bref_row_dict["death_date"]
+                    if "birth_date" in bref_row_dict:
+                        self.birth_date = bref_row_dict["birth_date"]
+                    if "death_date" in bref_row_dict:
+                        self.death_date = bref_row_dict["death_date"]
         return self.bref
     @download_drop_page
     def parse_tags(self):
@@ -367,10 +381,11 @@ class DhsArticle:
     @staticmethod
     def from_json(json_dict):
         """Parses a DhsArticle from a dict obtained from json.loads()"""
-        article = DhsArticle(json_dict["language"], json_dict["id"], json_dict["version"], json_dict["name"])
+        search_result_name_json_prop = "name" if "name" in json_dict else "search_result_name"
+        article = DhsArticle(json_dict["language"], json_dict["id"], json_dict["version"], json_dict[search_result_name_json_prop])
         if "tags" in json_dict:
             article.tags = [DhsTag.from_json(jt) for jt in json_dict["tags"]]
-        done_props = {"language", "id", "version", "name", "url", "tags"}
+        done_props = {"language", "id", "version", search_result_name_json_prop, "url", "tags"}
         for k,v in json_dict.items():
             if k not in done_props:
                 article.__dict__[k] = v

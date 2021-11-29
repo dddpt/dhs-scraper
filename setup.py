@@ -7,7 +7,7 @@ setup(
     url='https://github.com/dddpt/dhs-scraper',
     author='Didier Dupertuis',
     license='Apache License 2.0',
-    packages=['dhs_scraper'],
+    packages=['src'],
     install_requires=[
         'requests>=2.22.0',
         'lxml>=4.5.0',

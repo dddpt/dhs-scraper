@@ -38,7 +38,7 @@ def download_drop_page(func):
     """decorator to download page before func execution and,
     if asked, drop it just after"""
     def inner(self, *args, drop_page=False, **kwargs):
-        self.download_page()
+        self.download_page_content()
         result = func(self, *args, **kwargs)
         if drop_page:
             self.drop_page()
@@ -65,19 +65,20 @@ class DhsArticle:
         self.language = language
         self.id = id
         self.version = version
-        self.page=None
+        self.page_content=None
 
     @property
     def url(self):
         return DhsArticle.get_url_from_id(self.id, self.language, self.version)
 
-    def download_page(self):
-        if not self.page:# and counter<5:
-            self.page = r.get(self.url)
-            self._pagetree = html.fromstring(self.page.content)
-        return self.page
+    def download_page_content(self):
+        if not self.page_content:
+            page = r.get(self.url)
+            self.page_content = page.content
+            self._pagetree = html.fromstring(self.page_content)
+        return self.page_content
     def drop_page(self):
-        self.page = None
+        self.page_content = None
         del self._pagetree
 
     def is_person(self):
@@ -211,6 +212,7 @@ class DhsArticle:
         - link ( if present)
         - birth and death (if title=="Dates biographiques")
         """
+        self.bref=[]
         def parse_bref_row(bref_row):
             bref_row_dict = {}
             bref_row_dict["title"] = bref_row.cssselect(".hls-service-box-table-title")[0].text_content().strip()
@@ -235,8 +237,6 @@ class DhsArticle:
                 if bref_row_dict["title"] in biographical_date_bref_row_titles:
                     self.birth_date = bref_row_dict["birth_date"]
                     self.death_date = bref_row_dict["death_date"]
-        if ("bref" not in self.__dict__) or not self.bref:
-            self.bref=[]
         return self.bref
     @download_drop_page
     def parse_tags(self):
@@ -333,7 +333,7 @@ class DhsArticle:
         odict = self.__dict__.copy()
         if "text" in odict and odict["text"] and len(odict["text"])>DHS_ARTICLE_TEXT_REPR_NB_CHAR:
             odict["text"] = odict["text"][0:DHS_ARTICLE_TEXT_REPR_NB_CHAR]+" [...]"
-        odict["page"] = "loaded" if self.page else "not loaded"
+        odict["page_content"] = "loaded" if self.page_content else "not loaded"
         if "tags" in odict and odict["tags"] is not None:
             odict["tags"] = [t.tag for t in odict["tags"]]
         return get_attributes_string("DhsArticle", odict)
@@ -355,8 +355,6 @@ class DhsArticle:
     def to_json(self, as_dict=False, *args, **kwargs):
         """Returns a json string serialization of this DhsArticle"""
         json_dict = self.__dict__.copy()
-        if "page" in json_dict:
-            del json_dict["page"]
         if "_pagetree" in json_dict:
             del json_dict["_pagetree"]
         json_dict["url"] = self.url
@@ -452,7 +450,7 @@ class DhsArticle:
                 cname = ctitle[0].text_content().strip()
                 # search-result__title
                 page_url = c.get("href")
-                article = DhsArticle(url="https://hls-dhs-dss.ch"+page_url, name= cname)
+                article = DhsArticle(url="https://hls-dhs-dss.ch"+page_url, search_result_name = cname)
                 if (not skip_duplicates) or article.id not in already_visited_ids:
                     if force_language:
                         article.language = force_language

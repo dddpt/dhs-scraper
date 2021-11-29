@@ -1,7 +1,6 @@
 # %%
 
-from dhs_scraper import DhsArticle, stream_to_jsonl
-from lxml import get_include
+from src.dhs_scraper import DhsArticle, stream_to_jsonl
 
 
 # %% 
@@ -58,18 +57,18 @@ if georges.is_person():
 
 # Do a naïve search in the DHS, here for "bronschhofen".
 # You can give a single string or a list of strings
-bronschhofen_articles_search = DhsArticle.search_for_articles(
+bronschhofen_articles_search = list(DhsArticle.search_for_articles(
     "bronschofen"
-)
+))
 
 # %%
 
 # Loading 13 articles from a search url (here: all ecclesiastic entries)
 # # do not forget the &firstIndex= ending for the url
-ecclesiastic_entries = DhsArticle.scrape_articles_from_search_url(
+ecclesiastic_entries = list(DhsArticle.scrape_articles_from_search_url(
     "https://hls-dhs-dss.ch/fr/search/category?text=*&sort=score&sortOrder=desc&collapsed=true&r=1&rows=20&firstIndex=0&f_hls.lexicofacet_string=1%2F006800.009500.&firstIndex=",
     max_nb_articles=13
-)
+))
 
 # %%
 

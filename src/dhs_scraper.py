@@ -43,7 +43,7 @@ def download_drop_page(func):
     """decorator to download page before func execution and,
     if asked, drop it just after"""
     def inner(self, *args, drop_page=False, **kwargs):
-        self.download_page_content()
+        self.download_page()
         result = func(self, *args, **kwargs)
         if drop_page:
             self.drop_page()
@@ -82,11 +82,12 @@ class DhsArticle:
         if (self._text is None) and (self.page_content is not None):
             self.parse_text()
         return self._text
-    def download_page_content(self):
+    def download_page(self):
         if not self.page_content:
             page = r.get(self.url)
             self.page_content = page.content.decode()
-        self._pagetree = html.fromstring(self.page_content)
+        if "_pagetree" not in self.__dict__:
+            self._pagetree = html.fromstring(self.page_content)
         return self.page_content
     def drop_page(self):
         self.page_content = None

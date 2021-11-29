@@ -7,8 +7,11 @@ from traceback import print_exc
 from time import sleep
 
 from lxml import html
+from lxml.etree import iselement
 import pandas as pd#from pandas import Series
 import requests as r
+
+from .utils import lxml_depth_first_iterator, is_text_or_link
 
 DHS_SCRAPER_VERSION = "0.2.0"
 
@@ -135,6 +138,37 @@ class DhsArticle:
         text_elements = self.get_page_text_elements()
         self._text = reduce(lambda s,el: s+el.text_content()+"\n\n", text_elements, "")[0:-2]
         return self._text
+    @download_drop_page
+    def parse_text_links(self):
+        """Returns links embedded in the text of the article
+
+        returns a list of with for each element of get_page_text_elements() its corresponding list of links.
+
+        each text_link is a dict with keys:
+        - start, relative to corresponding get_page_text_elements() start
+        - end
+        - mention
+        - href
+        """
+        text_elements = self.get_page_text_elements()
+        texts_and_links_by_text_element = [[tl for tl in lxml_depth_first_iterator(te, is_text_or_link)] for te in text_elements]
+        self.text_links = []
+        for texts_and_links in texts_and_links_by_text_element:
+            index_accumulator = 0
+            links_in_text = []
+            for node in texts_and_links:
+                if iselement(node):
+                    links_in_text.append({
+                        "start": index_accumulator,
+                        "end": index_accumulator+len(node.text_content()),
+                        "mention": node.text_content(),
+                        "href": node.get("href")
+                    })
+                    index_accumulator += len(node.text_content())
+                else:
+                    index_accumulator += len(node)
+            self.text_links.append(links_in_text)
+        return self.text_links
     @download_drop_page
     def parse_sources(self):
         """Parses sources in self.sources
@@ -282,6 +316,7 @@ class DhsArticle:
         self.parse_title()
         self.parse_authors_translators()
         self.parse_text()
+        self.parse_text_links()
         self.parse_sources()
         self.parse_metagrid()
         self.parse_notice_links()

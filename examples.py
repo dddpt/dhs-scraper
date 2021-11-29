@@ -23,8 +23,10 @@ georges = DhsArticle(url="https://hls-dhs-dss.ch/fr/articles/044820/2011-12-08/"
 # A DhsArticle initially contains only its language, id, version data
 # to load the actual content of the article, use parse_article()
 schneckenbundgericht.parse_article()
+schneckenbundgericht.page_content # whole html page content obtained by a request to the article's url, can be dropped immediatly by adding drop_page=True argument to parse_article()
 schneckenbundgericht.title # title of the article
 schneckenbundgericht.text # text of the article
+schneckenbundgericht.text_links # links contained in the article text, organized per text element, see parse_text_links() doc
 schneckenbundgericht.bref # list of elements in the "En bref"/"Kurzinformationen"/"Scheda informativa" section of an article
 schneckenbundgericht.authors_translators # authors/translators of the article
 schneckenbundgericht.sources # sources from "Sources et bibliographie"/"Quellen und Literatur"/"Riferimenti bibliografici" section

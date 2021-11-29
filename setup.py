@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='dhs_scraper',
-    version='0.1.0',    
+    version='0.2.0',    
     description='A Scraper for the Historical Dictionary of Switzerland (DHS)',
     url='https://github.com/dddpt/dhs-scraper',
     author='Didier Dupertuis',

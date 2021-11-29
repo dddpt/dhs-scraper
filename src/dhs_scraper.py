@@ -10,6 +10,8 @@ from lxml import html
 import pandas as pd#from pandas import Series
 import requests as r
 
+DHS_SCRAPER_VERSION = "0.2.0"
+
 BULK_DOWNLOAD_COOL_DOWN = 0.5 # seconds
 DHS_ARTICLE_TEXT_REPR_NB_CHAR = 100 # nb char of text displayed in DhsArticle representation
 METAGRID_BASE_URL = "https://api.metagrid.ch/widget/dhs/person/<article_id>.json?lang=<language>&include=true"
@@ -66,11 +68,17 @@ class DhsArticle:
         self.id = id
         self.version = version
         self.page_content=None
+        self._text=None
+        self.scraper_version = DHS_SCRAPER_VERSION
 
     @property
     def url(self):
         return DhsArticle.get_url_from_id(self.id, self.language, self.version)
-
+    @property
+    def text(self):
+        if (self._text is None) and (self.page_content is not None):
+            self.parse_text()
+        return self._text
     def download_page_content(self):
         if not self.page_content:
             page = r.get(self.url)
@@ -125,8 +133,8 @@ class DhsArticle:
         """parses text of the article and adds it in self.text
         Usually doesn't get data table, only their title"""
         text_elements = self.get_page_text_elements()
-        self.text = reduce(lambda s,el: s+el.text_content()+"\n\n", text_elements, "")[0:-2]
-        return self.text
+        self._text = reduce(lambda s,el: s+el.text_content()+"\n\n", text_elements, "")[0:-2]
+        return self._text
     @download_drop_page
     def parse_sources(self):
         """Parses sources in self.sources
@@ -298,7 +306,7 @@ class DhsArticle:
         to a word in the title. Those are people: the correct initial is the 
         last name one, the one corresponding to the last word in the title.
         """
-        if "text" not in self.__dict__:
+        if self._text is None:
             self.parse_text()
         if "title" not in self.__dict__:
             self.parse_title()
@@ -371,6 +379,8 @@ class DhsArticle:
         json_dict = self.__dict__.copy()
         if "_pagetree" in json_dict:
             del json_dict["_pagetree"]
+        if ("_text" in json_dict) and ("page_content" in json_dict):
+            del json_dict["_text"]
         json_dict["url"] = self.url
         if "tags" in json_dict: 
             json_dict["tags"] = [t.to_json(as_dict=True) for t in self.tags]
@@ -382,10 +392,13 @@ class DhsArticle:
     def from_json(json_dict):
         """Parses a DhsArticle from a dict obtained from json.loads()"""
         search_result_name_json_prop = "name" if "name" in json_dict else "search_result_name"
+        text_json_prop = "text" if "text" in json_dict else "_text"
         article = DhsArticle(json_dict["language"], json_dict["id"], json_dict["version"], json_dict[search_result_name_json_prop])
         if "tags" in json_dict:
             article.tags = [DhsTag.from_json(jt) for jt in json_dict["tags"]]
-        done_props = {"language", "id", "version", search_result_name_json_prop, "url", "tags"}
+        if text_json_prop in json_dict:
+            article._text = json_dict[text_json_prop]
+        done_props = {"language", "id", "version", search_result_name_json_prop, "url", "tags", text_json_prop}
         for k,v in json_dict.items():
             if k not in done_props:
                 article.__dict__[k] = v

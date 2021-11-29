@@ -311,13 +311,12 @@ class DhsArticle:
                 self._initial = None
             elif is_most_present_in_title and is_second_most_present_in_title:
                 # pick one that is last in title
-                chosen = None
+                self._initial = None
                 for i in title_initials:
                     if i==most_present_in_title:
-                        chosen = most_present_in_title
+                        self._initial = most_present_in_title
                     if i==second_most_present_in_title:
-                        chosen = second_most_present_in_title
-                return chosen
+                        self._initial = second_most_present_in_title
             else:
                 raise Exception(f"DhsArticle.parse_identifying_initial(): UNCOVERED EDGE CASE FOR MORE THAN ONE INITIAL IN TEXT, article:\n{self.title}\n{self.url}\n{self.language}\n{self.id}\n{self.version}")
         else:

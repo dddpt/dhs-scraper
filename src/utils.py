@@ -11,7 +11,6 @@ def lxml_depth_first_iterator(element, iteration_criterion):
     - all descendants d of element for which iteration_criterion(d) returns True
     """
     for node in element.xpath("child::node()"):
-        print(f"lxml_dpi() node: {node}, iteration_criterion(node): {iteration_criterion(node)}, iselement(node): {iselement(node)}")
         if iteration_criterion(node):
             yield node
         elif iselement(node):

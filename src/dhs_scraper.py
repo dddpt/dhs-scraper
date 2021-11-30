@@ -143,7 +143,7 @@ class DhsArticle:
     def parse_text_links(self):
         """Returns links embedded in the text of the article
 
-        returns a list of with for each element of get_page_text_elements() its corresponding list of links.
+        returns a list with for each element of get_page_text_elements() its corresponding list of links.
 
         each text_link is a dict with keys:
         - start, relative to corresponding get_page_text_elements() start

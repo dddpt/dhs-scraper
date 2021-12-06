@@ -133,11 +133,26 @@ class DhsArticle:
         self._pagetree = html.fromstring(self.page_content)
         return elements
     @download_drop_page
-    def parse_text(self):
+    def parse_text_blocks(self):
+        """Parse the text blocks of an article in self.text_blocks
+        
+        Returns a list of tuple with:
+        0) text block tag ("h1", "h2", "h3", "p", etc...)
+        1) text block text
+        """
+        text_elements = self.get_page_text_elements()
+        self.text_blocks = [
+            (te.tag, te.text_content())
+            for te in text_elements
+        ]
+        return self.text_blocks
+    @download_drop_page
+    def parse_text(self, text_block_separator="\n\n"):
         """parses text of the article and adds it in self.text
         Usually doesn't get data table, only their title"""
         text_elements = self.get_page_text_elements()
-        self._text = reduce(lambda s,el: s+el.text_content()+"\n\n", text_elements, "")[0:-2]
+        self._text = text_block_separator.join(el.text_content() for el in text_elements)
+        #self._text = reduce(lambda s,el: s+el.text_content()+"\n\n", text_elements, "")[0:-2]
         return self._text
     @download_drop_page
     def parse_text_links(self):
@@ -316,6 +331,7 @@ class DhsArticle:
         """Calls all the parse_XX functions"""
         self.parse_title()
         self.parse_authors_translators()
+        self.parse_text_blocks()
         self.parse_text()
         self.parse_text_links()
         self.parse_sources()
@@ -410,13 +426,19 @@ class DhsArticle:
             raise Exception(f"DhsArticle.to_language(): invalid target language: {new_language}, must be one of de, fr, it")
         return DhsArticle(new_language, self.id, self.version)
 
-    def to_json(self, as_dict=False, *args, **kwargs):
+    def to_json(self, as_dict=False, drop_page_content=False, *args, **kwargs):
         """Returns a json string serialization of this DhsArticle"""
         json_dict = self.__dict__.copy()
         if "_pagetree" in json_dict:
             del json_dict["_pagetree"]
-        if ("_text" in json_dict) and ("page_content" in json_dict):
-            del json_dict["_text"]
+        if drop_page_content and "page_content" in json_dict:
+            del json_dict["page_content"]
+        else:
+            # if keep page_content drop text and text_blocks as they are extrapolable from page_content
+            if ("_text" in json_dict) and ("page_content" in json_dict):
+                del json_dict["_text"]
+            if ("text_blocks" in json_dict) and ("page_content" in json_dict):
+                del json_dict["_text"]
         json_dict["url"] = self.url
         if "tags" in json_dict: 
             json_dict["tags"] = [t.to_json(as_dict=True) for t in self.tags]

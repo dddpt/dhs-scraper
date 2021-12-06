@@ -1,6 +1,6 @@
 # %%
 
-from src.dhs_scraper import DhsArticle, stream_to_jsonl
+from dhs_scraper import DhsArticle, stream_to_jsonl
 
 
 # %% 
@@ -25,7 +25,8 @@ georges = DhsArticle(url="https://hls-dhs-dss.ch/fr/articles/044820/2011-12-08/"
 schneckenbundgericht.parse_article()
 schneckenbundgericht.page_content # whole html page content obtained by a request to the article's url, can be dropped immediatly by adding drop_page=True argument to parse_article()
 schneckenbundgericht.title # title of the article
-schneckenbundgericht.text # text of the article
+schneckenbundgericht.text_blocks # text blocks of the article, with their corresponding html tag
+schneckenbundgericht.text # text of the article, text blocks concatenated with "\n\n"
 schneckenbundgericht.text_links # links contained in the article text, organized per text element, see parse_text_links() doc
 schneckenbundgericht.bref # list of elements in the "En bref"/"Kurzinformationen"/"Scheda informativa" section of an article
 schneckenbundgericht.authors_translators # authors/translators of the article

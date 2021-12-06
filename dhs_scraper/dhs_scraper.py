@@ -8,7 +8,7 @@ from time import sleep
 
 from lxml import html
 from lxml.etree import iselement
-import pandas as pd#from pandas import Series
+from pandas import Series
 import requests as r
 
 from .utils import lxml_depth_first_iterator, is_text_or_link
@@ -346,7 +346,7 @@ class DhsArticle:
             self.parse_text()
         if "title" not in self.__dict__:
             self.parse_title()
-        text_initials = pd.Series(article_text_initial_regex.findall(self.text), dtype="U").value_counts()
+        text_initials = Series(article_text_initial_regex.findall(self.text), dtype="U").value_counts()
         title_initials = [s[0] for s in self.title.split(" ") if s[0].isupper()]
 
         if len(text_initials)==0:

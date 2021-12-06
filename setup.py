@@ -11,6 +11,7 @@ setup(
     install_requires=[
         'requests>=2.22.0',
         'lxml>=4.5.0',
+        'pandas>=1.3.3'
     ],
     setup_requires=['wheel'],
     classifiers=[

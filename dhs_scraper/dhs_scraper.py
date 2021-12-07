@@ -140,11 +140,12 @@ class DhsArticle:
         0) text block tag ("h1", "h2", "h3", "p", etc...)
         1) text block text
         """
-        text_elements = self.get_page_text_elements()
-        self.text_blocks = [
-            (te.tag, te.text_content())
-            for te in text_elements
-        ]
+        if "text_blocks" not in self.__dict__:
+            text_elements = self.get_page_text_elements()
+            self.text_blocks = [
+                (te.tag, te.text_content())
+                for te in text_elements
+            ]
         return self.text_blocks
     @download_drop_page
     def parse_text(self, text_block_separator="\n\n"):
@@ -166,24 +167,25 @@ class DhsArticle:
         - mention
         - href
         """
-        text_elements = self.get_page_text_elements()
-        texts_and_links_by_text_element = [[tl for tl in lxml_depth_first_iterator(te, is_text_or_link)] for te in text_elements]
-        self.text_links = []
-        for texts_and_links in texts_and_links_by_text_element:
-            index_accumulator = 0
-            links_in_text = []
-            for node in texts_and_links:
-                if iselement(node):
-                    links_in_text.append({
-                        "start": index_accumulator,
-                        "end": index_accumulator+len(node.text_content()),
-                        "mention": node.text_content(),
-                        "href": node.get("href")
-                    })
-                    index_accumulator += len(node.text_content())
-                else:
-                    index_accumulator += len(node)
-            self.text_links.append(links_in_text)
+        if "text_links" not in self.__dict__:
+            text_elements = self.get_page_text_elements()
+            texts_and_links_by_text_element = [[tl for tl in lxml_depth_first_iterator(te, is_text_or_link)] for te in text_elements]
+            self.text_links = []
+            for texts_and_links in texts_and_links_by_text_element:
+                index_accumulator = 0
+                links_in_text = []
+                for node in texts_and_links:
+                    if iselement(node):
+                        links_in_text.append({
+                            "start": index_accumulator,
+                            "end": index_accumulator+len(node.text_content()),
+                            "mention": node.text_content(),
+                            "href": node.get("href")
+                        })
+                        index_accumulator += len(node.text_content())
+                    else:
+                        index_accumulator += len(node)
+                self.text_links.append(links_in_text)
         return self.text_links
     @download_drop_page
     def parse_sources(self):

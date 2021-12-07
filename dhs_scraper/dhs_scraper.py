@@ -146,6 +146,11 @@ class DhsArticle:
                 (te.tag, te.text_content())
                 for te in text_elements
             ]
+            # usually, title doesn't contain spaces correctly for people, correct this
+            self.text_blocks[0] = (
+                self.text_blocks[0][0],
+                re.sub(r"(\w+)([A-Z])", r"\g<1> \g<2>", self.text_blocks[0][1])
+            )
         return self.text_blocks
     @download_drop_page
     def parse_text(self, text_block_separator="\n\n"):

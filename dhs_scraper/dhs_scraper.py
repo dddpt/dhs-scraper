@@ -156,8 +156,8 @@ class DhsArticle:
     def parse_text(self, text_block_separator="\n\n"):
         """parses text of the article and adds it in self.text
         Usually doesn't get data table, only their title"""
-        text_elements = self.get_page_text_elements()
-        self._text = text_block_separator.join(el.text_content() for el in text_elements)
+        text_blocks = self.parse_text_blocks()
+        self._text = text_block_separator.join([t[1] for t in text_blocks])
         #self._text = reduce(lambda s,el: s+el.text_content()+"\n\n", text_elements, "")[0:-2]
         return self._text
     @download_drop_page

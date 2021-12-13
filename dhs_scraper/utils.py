@@ -17,7 +17,31 @@ def lxml_depth_first_iterator(element, iteration_criterion):
             for n in lxml_depth_first_iterator(node, iteration_criterion):
                 yield n
 
+
 def is_text_or_link(node):
     if (not iselement(node)) or (node.tag=="a"):
         return True
     return False
+
+
+def get_attributes_string(class_name, object_dict):
+    """Unimportant utility function to format __str__() and __repr()"""
+    return f"""{class_name}({', '.join([
+        f"{str(k)}: {str(v)}"
+        for k, v in object_dict.items()
+    ])})"""
+
+
+def stream_to_jsonl(jsonl_filepath, jsonable_iterable, buffer_size=100):
+    """Saves jsonables to a jsonl file from an iterable/generator
+    
+    A jsonable is an object with a to_json() method
+    Useful to stream scraped articles to a jsonl on-the-fly and not keep them in memory.
+    Uses a buffer to avoid disk usage"""
+    buffer = [None]*buffer_size
+    with open(jsonl_filepath, "a") as jsonl_file:
+        for i, a in enumerate(jsonable_iterable):
+            if i!=0 and i%buffer_size==0:
+                jsonl_file.write("\n".join(buffer)+"\n")
+            buffer[i%buffer_size]= a.to_json(ensure_ascii=False)
+        jsonl_file.write("\n".join(buffer[0:((i%buffer_size)+1)])+"\n")

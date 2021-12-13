@@ -11,7 +11,8 @@ from lxml.etree import iselement
 from pandas import Series
 import requests as r
 
-from .utils import lxml_depth_first_iterator, is_text_or_link
+from .DhsTag import DhsTag
+from .utils import lxml_depth_first_iterator, is_text_or_link, get_attributes_string, stream_to_jsonl
 
 DHS_SCRAPER_VERSION = "0.2.0"
 
@@ -31,13 +32,6 @@ article_jsonl_id_regex = re.compile(r'^.+?"id": "(\d+)"')
 article_text_initial_regex = re.compile(r" ([A-Z])\.\W")
 biographical_date_bref_row_titles = ["Dates biographiques", "Lebensdaten", "Dati biografici"]
 bref_section_titles = ["En bref","Kurzinformationen","Scheda informativa"]
-
-def get_attributes_string(class_name, object_dict):
-    """Unimportant utility function to format __str__() and __repr()"""
-    return f"""{class_name}({', '.join([
-        f"{str(k)}: {str(v)}"
-        for k, v in object_dict.items()
-    ])})"""
 
 def download_drop_page(func):
     """decorator to download page before func execution and,
@@ -624,60 +618,3 @@ class DhsArticle:
                         parse_line = i in indices_to_keep
                     if parse_line:
                         yield load_article(line,i)
-
-class DhsTag:
-    """Defines a DHS tag with properties "tag" and "url"
-    
-    Implements equality and hash based on "tag" property, not url.
-    """
-    def __init__(self, tag, url):
-        self.tag = tag
-        self. url =  url
-    def get_levels(self):
-        return [l.strip() for l in self.tag.split("/")]
-    def get_level(self, level, default_to_last=False):
-        levels = self.get_levels()
-        if level<len(levels):
-            return levels[level]
-        elif default_to_last:
-            return levels[-1]
-        return None
-    @property
-    def ftag(self):
-        """returns last tag level"""
-        return self.get_levels()[-1]
-    def __hash__(self) -> int:
-        return hash(self.tag)
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return other.tag==self.tag
-        #elif isinstance(other, str): # dangerous
-        #    return other==self.tag
-        return False
-    def __str__(self):
-        return f'DhsTag("{self.tag}")'
-    def __repr__(self):
-        return self.__str__()
-    def to_json(self, as_dict=False):
-        if as_dict:
-            return self.__dict__.copy()
-        else:
-            return json.dumps(self.__dict__)
-    @staticmethod
-    def from_json(json_dict):
-        return DhsTag(json_dict["tag"], json_dict["url"])
-
-
-def stream_to_jsonl(jsonl_filepath, jsonable_iterable, buffer_size=100):
-    """Saves jsonables to a jsonl file from an iterable/generator
-    
-    A jsonable is an object with a to_json() method
-    Useful to stream scraped articles to a jsonl on-the-fly and not keep them in memory.
-    Uses a buffer to avoid disk usage"""
-    buffer = [None]*buffer_size
-    with open(jsonl_filepath, "a") as jsonl_file:
-        for i, a in enumerate(jsonable_iterable):
-            if i!=0 and i%buffer_size==0:
-                jsonl_file.write("\n".join(buffer)+"\n")
-            buffer[i%buffer_size]= a.to_json(ensure_ascii=False)
-        jsonl_file.write("\n".join(buffer[0:((i%buffer_size)+1)])+"\n")

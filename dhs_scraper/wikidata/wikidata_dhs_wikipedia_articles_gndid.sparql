@@ -1,0 +1,38 @@
+# Get all wikidata entities having a DHS id, with wikipedia articles and associated gnd id
+SELECT DISTINCT ?item ?itemLabel ?dhsid ?namefr ?articlefr ?namede ?articlede ?nameit ?articleit ?nameen ?articleen ?instanceof ?instanceofLabel ?subclassof ?subclassofLabel ?gndid WHERE {
+  ?item wdt:P902 ?dhsid .
+  OPTIONAL{ 
+   ?articlefr schema:about ?item ;
+              schema:inLanguage "fr" ;
+              schema:name ?namefr ;
+              schema:isPartOf [ wikibase:wikiGroup "wikipedia" ] .
+  }
+  OPTIONAL{
+   ?articlede schema:about ?item ;
+              schema:inLanguage "de" ;
+              schema:name ?namede ;
+              schema:isPartOf [ wikibase:wikiGroup "wikipedia" ] .
+  }
+  OPTIONAL{
+   ?articleit schema:about ?item ;
+              schema:inLanguage "it" ;
+              schema:name ?nameit ;
+              schema:isPartOf [ wikibase:wikiGroup "wikipedia" ] .
+  }
+  OPTIONAL{
+   ?articleen schema:about ?item ;
+              schema:inLanguage "en" ;
+              schema:name ?nameen ;
+              schema:isPartOf [ wikibase:wikiGroup "wikipedia" ] .
+  }
+  OPTIONAL{
+    ?item wdt:P31 ?instanceof 
+  }
+  OPTIONAL{
+    ?item wdt:P279 ?subclassof 
+  }
+  OPTIONAL{
+    ?item wdt:P227 ?gndid 
+  }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "fr". }
+}

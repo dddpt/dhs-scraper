@@ -13,6 +13,7 @@ import requests as r
 
 from .DhsTag import DhsTag
 from .utils import lxml_depth_first_iterator, is_text_or_link, get_attributes_string, stream_to_jsonl
+from .wikidata import SPARQL_DOWNLOAD_DISCLAIMER, add_wikidata_wikipedia_to_text_links, get_wikidata_links_from_dhs_id, get_wikidata_main_link_from_dhs_id
 
 DHS_SCRAPER_VERSION = "0.2.0"
 
@@ -403,6 +404,23 @@ class DhsArticle:
         if "_initial" not in self.__dict__:
             self.parse_identifying_initial()
         return self._initial
+
+
+    def add_wikidata_id_wikipedia_page_title(self):
+        """Adds wikidata entity id and wikipedia_page_title to text_links
+        
+        See wikidata/wikidata.py add_wikidata_wikipedia_links() doc for more details.\n\n"""+SPARQL_DOWNLOAD_DISCLAIMER
+        self.wiki_links = get_wikidata_links_from_dhs_id(self.id)
+        wikidata_id, wikipedia_page_title = get_wikidata_main_link_from_dhs_id(self.id, self.language)
+        self.wikidata_id = wikidata_id
+        self.wikipedia_page_title = wikipedia_page_title
+
+    def add_wikidata_wikipedia_to_text_links(self):
+        """Adds wikidata entity id and wikipedia_page_title to text_links
+        
+        See wikidata/wikidata.py add_wikidata_wikipedia_links() doc for more details.\n\n"""+SPARQL_DOWNLOAD_DISCLAIMER
+        add_wikidata_wikipedia_to_text_links(self)
+
 
     def __str__(self):
         odict = self.__dict__.copy()

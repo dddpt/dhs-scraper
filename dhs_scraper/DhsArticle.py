@@ -12,7 +12,7 @@ from pandas import Series
 import requests as r
 
 from .DhsTag import DhsTag
-from .utils import lxml_depth_first_iterator, is_text_or_link, get_attributes_string, stream_to_jsonl
+from .utils import lxml_depth_first_iterator, is_text_or_link, get_attributes_string
 from .wikidata import SPARQL_DOWNLOAD_DISCLAIMER, add_wikidata_wikipedia_to_text_links, get_wikidata_links_from_dhs_id, get_wikidata_main_link_from_dhs_id
 
 DHS_SCRAPER_VERSION = "0.2.0"
@@ -166,6 +166,7 @@ class DhsArticle:
         - end
         - mention
         - href
+        - dhsid
         """
         if "text_links" not in self.__dict__:
             text_elements = self.get_page_text_elements()
@@ -176,11 +177,14 @@ class DhsArticle:
                 links_in_text = []
                 for node in texts_and_links:
                     if iselement(node):
+                        href = node.get("href")
+                        lng, dhsid, v = DhsArticle.get_language_id_version_from_url(href) if href else (None,None,None)
                         links_in_text.append({
                             "start": index_accumulator,
                             "end": index_accumulator+len(node.text_content()),
                             "mention": node.text_content(),
-                            "href": node.get("href")
+                            "href": href,
+                            "dhsid": dhsid
                         })
                         index_accumulator += len(node.text_content())
                     else:
@@ -406,21 +410,27 @@ class DhsArticle:
         return self._initial
 
 
-    def add_wikidata_id_wikipedia_page_title(self):
+    def add_wikidata_url_wikipedia_page_title(self):
         """Adds wikidata entity id and wikipedia_page_title to text_links
         
         See wikidata/wikidata.py add_wikidata_wikipedia_links() doc for more details.\n\n"""+SPARQL_DOWNLOAD_DISCLAIMER
         self.wiki_links = get_wikidata_links_from_dhs_id(self.id)
-        wikidata_id, wikipedia_page_title = get_wikidata_main_link_from_dhs_id(self.id, self.language)
-        self.wikidata_id = wikidata_id
+        wikidata_url, wikipedia_page_title = get_wikidata_main_link_from_dhs_id(self.id, self.language)
+        self.wikidata_url = wikidata_url
         self.wikipedia_page_title = wikipedia_page_title
 
+    def get_wikidata_links(self):
+        if "wiki_links" not in self.__dict__:
+            self.add_wikidata_url_wikipedia_page_title()
+        return (self.wikidata_url, self.wikipedia_page_title, self.wiki_links)
+
     def add_wikidata_wikipedia_to_text_links(self):
-        """Adds wikidata entity id and wikipedia_page_title to text_links
+        """Adds wikidata entity url and wikipedia_page_title to text_links
         
         See wikidata/wikidata.py add_wikidata_wikipedia_links() doc for more details.\n\n"""+SPARQL_DOWNLOAD_DISCLAIMER
-        add_wikidata_wikipedia_to_text_links(self)
-
+        if "added_wikidata_wikipedia_to_text_links" not in self.__dict__ or not self.added_wikidata_wikipedia_to_text_links: 
+            add_wikidata_wikipedia_to_text_links(self)
+            self.added_wikidata_wikipedia_to_text_links = True
 
     def __str__(self):
         odict = self.__dict__.copy()

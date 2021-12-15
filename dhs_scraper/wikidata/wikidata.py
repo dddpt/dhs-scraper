@@ -16,7 +16,7 @@ WIKIDATA_QUERY_FILE = path.join(script_folder, "wikidata_dhs_wikipedia_articles_
 LOADED_WIKIDATA_LINKS_CSVS = set()
 WIKIDATA_LINKS = dict()
 
-WIKIDATA_ID_KEY = "item"
+WIKIDATA_URL_KEY = "item"
 
 SPARQL_DOWNLOAD_DISCLAIMER = \
     f"A prerequisite is to have manually downloaded the result of the sparql query in file '{WIKIDATA_QUERY_FILE}' at 'https://query.wikidata.org/' " + \
@@ -52,18 +52,17 @@ def get_wikidata_links_from_dhs_id(dhs_id, wikidata_links_file = DEFAULT_WIKIDAT
 def get_wikidata_main_link_from_dhs_id(dhs_id, language:str, wikidata_links_file = DEFAULT_WIKIDATA_LINKS_FILE):
     load_wikidata_links(wikidata_links_file)
     wiki_links = get_wikidata_links_from_dhs_id(dhs_id)
-    wikidata_id_key = "item"
     wikipedia_page_title_key = "name"+language
     for l in wiki_links:
         if l[wikipedia_page_title_key] is not None and l[wikipedia_page_title_key] not in ["", "null"]:
-            return (l[wikidata_id_key], l[wikipedia_page_title_key])
+            return (l[WIKIDATA_URL_KEY], l[wikipedia_page_title_key])
     return (None,None)
 
 def add_wikidata_wikipedia_to_text_links(dhs_article:DhsArticle, wikidata_links_file = DEFAULT_WIKIDATA_LINKS_FILE):
-    """adds "wiki_links" attribute to dhs_article.text_links, also adds one as main "wikidata_id" and "wikipedia_page_title".
+    """adds "wiki_links" attribute to dhs_article.text_links, also adds one as main "wikidata_url" and "wikipedia_page_title".
     
     Adds all the wikidata entities that have a wikidata P902 property pointing to the given dhs_id to "wiki_links".
-    For the "wikidata_id" and "wikipedia_page_title" attributes, takes the first entries that has a wikipedia_page_title in given language.
+    For the "wikidata_url" and "wikipedia_page_title" attributes, takes the first entries that has a wikipedia_page_title in given language.
     """
     load_wikidata_links(wikidata_links_file)
     if "text_links" in dhs_article.__dict__:
@@ -72,8 +71,8 @@ def add_wikidata_wikipedia_to_text_links(dhs_article:DhsArticle, wikidata_links_
                 lng, dhsid, v = dhs_article.get_language_id_version_from_url(link["href"])
                 wiki_links = get_wikidata_links_from_dhs_id(dhsid)
                 link["wiki_links"] = wiki_links
-                wikidata_id, wikipedia_page_title = get_wikidata_main_link_from_dhs_id(dhsid, dhs_article.language)
-                link["wikidata_id"] = wikidata_id
+                wikidata_url, wikipedia_page_title = get_wikidata_main_link_from_dhs_id(dhsid, dhs_article.language)
+                link["wikidata_url"] = wikidata_url
                 link["wikipedia_page_title"] = wikipedia_page_title
 
     else:

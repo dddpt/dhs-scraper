@@ -74,11 +74,12 @@ class DhsArticle:
         return DhsArticle.get_url_from_id(self.id, self.language, self.version)
     @property
     def text(self):
-        if (self._text is None) and (self.page_content is not None):
+        if (self._text is None) and (("text_blocks" in self.__dict__) or self.page_content is not None):
             self.parse_text()
         return self._text
     def download_page(self):
         if not self.page_content:
+            print("DHSA DOWNLOADING PAGE")
             page = r.get(self.url)
             self.page_content = page.content.decode()
         if "_pagetree" not in self.__dict__:
@@ -127,7 +128,6 @@ class DhsArticle:
         # reparse _pagetree as we removed some elements from it.
         self._pagetree = html.fromstring(self.page_content)
         return elements
-    @download_drop_page
     def parse_text_blocks(self):
         """Parse the text blocks of an article in self.text_blocks
         
@@ -147,7 +147,6 @@ class DhsArticle:
                 re.sub(r"(\w+)([A-Z])", r"\g<1> \g<2>", self.text_blocks[0][1])
             )
         return self.text_blocks
-    @download_drop_page
     def parse_text(self, text_block_separator="\n\n"):
         """parses text of the article and adds it in self.text
         Usually doesn't get data table, only their title"""
@@ -155,7 +154,6 @@ class DhsArticle:
         self._text = text_block_separator.join([t[1] for t in text_blocks])
         #self._text = reduce(lambda s,el: s+el.text_content()+"\n\n", text_elements, "")[0:-2]
         return self._text
-    @download_drop_page
     def parse_text_links(self):
         """Returns links embedded in the text of the article
 
@@ -460,7 +458,8 @@ class DhsArticle:
         json_dict = self.__dict__.copy()
         if "_pagetree" in json_dict:
             del json_dict["_pagetree"]
-        if drop_page_content and "page_content" in json_dict:
+        if (drop_page_content and "page_content" in json_dict) or \
+            ("page_content" in json_dict and json_dict["page_content"] is None):
             del json_dict["page_content"]
         else:
             # if keep page_content drop text and text_blocks as they are extrapolable from page_content

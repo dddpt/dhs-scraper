@@ -467,7 +467,7 @@ class DhsArticle:
             if ("_text" in json_dict) and ("page_content" in json_dict):
                 del json_dict["_text"]
             if ("text_blocks" in json_dict) and ("page_content" in json_dict):
-                del json_dict["_text"]
+                del json_dict["text_blocks"]
         json_dict["url"] = self.url
         if "tags" in json_dict: 
             json_dict["tags"] = [t.to_json(as_dict=True) for t in self.tags]

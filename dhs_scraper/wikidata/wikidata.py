@@ -53,10 +53,14 @@ def get_wikidata_main_link_from_dhs_id(dhs_id, language:str, wikidata_links_file
     load_wikidata_links(wikidata_links_file)
     wiki_links = get_wikidata_links_from_dhs_id(dhs_id)
     wikipedia_page_title_key = "name"+language
+    wd_url_wk_title = (None,None)
     for l in wiki_links:
         if l[wikipedia_page_title_key] is not None and l[wikipedia_page_title_key] not in ["", "null"]:
-            return (l[WIKIDATA_URL_KEY], l[wikipedia_page_title_key])
-    return (None,None)
+            wd_url_wk_title = (l[WIKIDATA_URL_KEY], l[wikipedia_page_title_key])
+            break
+        else: 
+            wd_url_wk_title = (l[WIKIDATA_URL_KEY], None)
+    return wd_url_wk_title
 
 def add_wikidata_wikipedia_to_text_links(dhs_article:DhsArticle, wikidata_links_file = DEFAULT_WIKIDATA_LINKS_FILE):
     """adds "wiki_links" attribute to dhs_article.text_links, also adds one as main "wikidata_url" and "wikipedia_page_title".

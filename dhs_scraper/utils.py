@@ -32,7 +32,7 @@ def get_attributes_string(class_name, object_dict):
     ])})"""
 
 
-def stream_to_jsonl(jsonl_filepath, jsonable_iterable, buffer_size=100):
+def stream_to_jsonl(jsonl_filepath, jsonable_iterable, buffer_size=100, **to_json_kwargs):
     """Saves jsonables to a jsonl file from an iterable/generator
     
     A jsonable is an object with a to_json() method
@@ -43,5 +43,5 @@ def stream_to_jsonl(jsonl_filepath, jsonable_iterable, buffer_size=100):
         for i, a in enumerate(jsonable_iterable):
             if i!=0 and i%buffer_size==0:
                 jsonl_file.write("\n".join(buffer)+"\n")
-            buffer[i%buffer_size]= a.to_json(ensure_ascii=False)
+            buffer[i%buffer_size]= a.to_json(ensure_ascii=False, **to_json_kwargs)
         jsonl_file.write("\n".join(buffer[0:((i%buffer_size)+1)])+"\n")

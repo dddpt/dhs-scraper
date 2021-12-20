@@ -620,7 +620,7 @@ class DhsArticle:
             return
 
     @staticmethod
-    def load_articles_from_jsonl(jsonl_filepath, ids_to_keep=set(), indices_to_keep=set()):
+    def load_articles_from_jsonl(jsonl_filepath, ids_to_keep=set(), indices_to_keep=set(), ids_to_drop=set()):
         """Loads articles from a .jsonl file with one json DhsArticle per line
         
         ids_to_keep: list (or preferably a set) of dhs articles' ids to load, avoids to parse unwanted articles
@@ -638,9 +638,12 @@ class DhsArticle:
             for i,line in enumerate(jsonl_file):
                 if len(line)>0:
                     parse_line = True
-                    if len(ids_to_keep)>0:
+                    if len(ids_to_keep)>0 or len(ids_to_drop)>0:
                         article_id = article_jsonl_id_regex.search(line).group(1)
-                        parse_line = article_id in ids_to_keep
+                        if len(ids_to_drop)>0:
+                            parse_line = article_id not in ids_to_drop
+                        if len(ids_to_keep)>0:
+                            parse_line = article_id in ids_to_keep
                     if len(indices_to_keep)>0:
                         parse_line = i in indices_to_keep
                     if parse_line:

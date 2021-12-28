@@ -40,8 +40,11 @@ def stream_to_jsonl(jsonl_filepath, jsonable_iterable, buffer_size=100, **to_jso
     Uses a buffer to avoid disk usage"""
     buffer = [None]*buffer_size
     with open(jsonl_filepath, "a") as jsonl_file:
+        empty=True
         for i, a in enumerate(jsonable_iterable):
+            empty=False
             if i!=0 and i%buffer_size==0:
                 jsonl_file.write("\n".join(buffer)+"\n")
             buffer[i%buffer_size]= a.to_json(ensure_ascii=False, **to_json_kwargs)
-        jsonl_file.write("\n".join(buffer[0:((i%buffer_size)+1)])+"\n")
+        if not empty:
+            jsonl_file.write("\n".join(buffer[0:((i%buffer_size)+1)])+"\n")

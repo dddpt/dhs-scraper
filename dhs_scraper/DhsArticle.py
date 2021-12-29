@@ -367,7 +367,12 @@ class DhsArticle:
         if "title" not in self.__dict__:
             self.parse_title()
         text_initials = Series(article_text_initial_regex.findall(self.text), dtype="U").value_counts()
-        title_initials = [s[0] for s in self.title.split(" ") if s[0].isupper()]
+ 
+        # title initials: avoid words which are only upper case (mostly title's roman numerals such as I. IV., etc...)
+        title_number_regex = re.compile(r"[A-Z]+\.")
+        title_words = self.title.split(" ")
+        filtered_title_words = [w for w in title_words if not title_number_regex.match(w)]
+        title_initials = [s[0] for s in filtered_title_words if s[0].isupper()]
 
         if len(text_initials)==0:
             self._initial = None

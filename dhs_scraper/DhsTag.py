@@ -1,12 +1,6 @@
 import json
 
 
-def tag_tree_create_empty_node(name, parent=None):
-    return {
-        "name": name,
-        "parent": parent,
-        "children": []
-    }
 
 class DhsTag:
     """Defines a DHS tag with properties "tag" and "url"
@@ -64,7 +58,7 @@ class DhsTag:
                 if missing_behaviour is None:
                     return None
                 if missing_behaviour == "create":
-                    child_node = tag_tree_create_empty_node(l, current_node["name"])
+                    child_node = tag_tree.create_empty_node(l, current_node["name"])
                     current_node["children"].append(child_node)
                 if missing_behaviour == "error":
                     raise Exception("get_tag_tree_node() non-existent tag tree node for level "+l+" of tag "+dhs_tag) 
@@ -73,7 +67,7 @@ class DhsTag:
 
     @staticmethod
     def build_tag_tree(tags):
-        root_node = tag_tree_create_empty_node("root")
+        root_node = tag_tree.create_empty_node("root")
         for t in tags:
             DhsTag.get_tag_tree_node(root_node, t, "create")
         return root_node
@@ -83,14 +77,101 @@ class DhsTag:
         utags = set(t for a in articles for t in a.tags)
         return [(t, [a for a in articles if t in a.tags]) for t in utags]
 
+
+
+
+
+# =========================== TAG TREE ===========================
+
+class tag_tree:
+
     @staticmethod
-    def add_articles_ids_to_tag_tree(tag_tree, articles=None, articles_per_tag=None):
+    def create_empty_node(name, parent=None):
+        return {
+            "name": name,
+            "parent": parent,
+            "children": []
+        }
+
+    @staticmethod
+    def traverse_depth_first(node, recursive_function, **recursive_function_kwargs):
+        """Applies recursive_function on all nodes of the tag_tree depth first
+        
+        recursive_function should take two arguments: the current node, and a list
+        containing the result of recursive_function on the nodes' children (an empty list if node has no children)."""
+        children_result = [
+            tag_tree.traverse_depth_first(n, recursive_function, **recursive_function_kwargs) for n in node["children"]
+        ] if "children" in node else []
+        return recursive_function(node, children_result, **recursive_function_kwargs)
+
+
+    @staticmethod
+    def stats_articles_count(node):
+        return len(node["articles"]) if "articles" in node else [0]
+
+
+    @staticmethod
+    def stats_articles_by_category_proportions_curry(articles_by_category):
+        """Returns a function to return the count of articles by category
+        
+        Tobe used as stat_func inside tag_tree.recursive_node_statistics()
+        """
+        def articles_by_category_proportions(node):
+            pass
+        return articles_by_category_proportions
+
+
+    @staticmethod
+    def recursive_node_statistics(node, children_statistics, stat_func=None):
+        """Computes 3 statistics for the current node: "statistics", "children_statistics", "total_statistics"
+        
+        recursive_function ready for use in tag_tree.traverse_depth_first()
+        """
+        if stat_func is None:
+            stat_func = tag_tree.stats_articles_count
+        node["children_statistics"] = children_statistics
+        node["statistics"] = stat_func(node)
+        node["total_statistics"] = [
+            x+sum(cs[i] for cs in children_statistics) for i, x in enumerate(node["statistics"])
+        ]
+        return node["total_statistics"]
+
+    
+    @staticmethod
+    def add_articles_to_tag_tree(tag_tree_root, articles=None, articles_per_tag=None):
+        """Adds an "articles" entry to each node of the tag tree, containing the list of DhsArticle having the tag
+        
+        Note that articles will only be added to the final node corresponding to the tag.
+        For example, Laax has the tag "Entités politiques / Commune", it will only be added to the "Commune" tag tree node.""
+        """
         if articles is None and articles_per_tag is None:
-            raise Exception("DhsTag.add_articles_ids_to_tag_tree() one of articles or articles_per_tag must be non-None.")
+            raise Exception("tag_tree.add_articles_to_tag_tree() one of articles or articles_per_tag must be non-None.")
         if articles_per_tag is None:
             articles_per_tag = DhsTag.get_articles_per_tag(articles)
+        def add_empty_articles_list(node, cr):
+            node["articles"]=[]
+        tag_tree.traverse_depth_first(tag_tree_root, add_empty_articles_list)
         for t, articles in articles_per_tag:
-            tag_node = DhsTag.get_tag_tree_node(tag_tree, t)
+            tag_node = DhsTag.get_tag_tree_node(tag_tree_root, t)
             if tag_node is None:
-                raise Exception("add_articles_ids_to_tag_tree() non-existent tag tree node for tag: "+t) 
-            tag_node["articles_ids"]=[a.id for a in articles]
+                raise Exception("tag_tree.add_articles_to_tag_tree() non-existent tag tree node for tag: "+t) 
+            tag_node["articles"]=[a for a in articles]
+    
+    @staticmethod
+    def modify_articles(tag_tree_root, modifier_func):
+        """Replaces each DhsArticle X by modifier_func(X) in the node["articles"] entry of each node of the tag_tree
+
+        Modifies the tag_tree_root in place, returns a revert function that, if called, reverts the
+        tag_tree to its original state with each node["articles"] containing the original DhsArticle
+        The revert function assumes the tree structure didn't change (no node added or removed).
+        """
+        original_articles_sequential = []
+        def apply_to_node(node, cr_unused):
+            original_articles_sequential.append(node["articles"])
+            node["articles"] = [modifier_func(a) for a in node["articles"]]
+        tag_tree.traverse_depth_first(tag_tree_root, apply_to_node)
+        def revert_node(node, cr_unused):
+            node["articles"] = original_articles_sequential.pop(0)
+        def revert():
+            tag_tree.traverse_depth_first(tag_tree_root, revert_node)
+        return revert

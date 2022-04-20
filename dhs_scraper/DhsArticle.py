@@ -23,6 +23,8 @@ METAGRID_BASE_URL = "https://api.metagrid.ch/widget/dhs/person/<article_id>.json
 
 TOTAL_NB_DHS_ARTICLES = 36355 # in FR dhs as of 01.11.2021
 
+DHS_ARTICLE_CATEGORIES = ['themes', 'people', 'families', 'spatial']
+
 # %%
 
 # regex to extract dhs article id, version and language

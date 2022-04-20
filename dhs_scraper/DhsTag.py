@@ -107,17 +107,20 @@ class tag_tree:
 
     @staticmethod
     def stats_articles_count(node):
-        return len(node["articles"]) if "articles" in node else [0]
+        return [len(node["articles"])] if "articles" in node else [0]
 
 
     @staticmethod
-    def stats_articles_by_category_proportions_curry(articles_by_category):
+    def stats_articles_by_category_proportions_curry(articles_by_category, categories):
         """Returns a function to return the count of articles by category
         
         Tobe used as stat_func inside tag_tree.recursive_node_statistics()
         """
         def articles_by_category_proportions(node):
-            pass
+            [
+                len(a for a in node["articles"] if a.id in articles_by_category[c])
+                for c in categories
+            ]
         return articles_by_category_proportions
 
 

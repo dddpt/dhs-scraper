@@ -111,33 +111,33 @@ class tag_tree:
 
 
     @staticmethod
-    def stats_articles_by_category_proportions_curry(articles_by_category, categories):
+    def stats_articles_by_category_proportions_curry(article_ids_by_category, categories):
         """Returns a function to return the count of articles by category
         
         Tobe used as stat_func inside tag_tree.recursive_node_statistics()
         """
-        def articles_by_category_proportions(node):
-            [
-                len(a for a in node["articles"] if a.id in articles_by_category[c])
+        def articles_by_category_proportions(node):        
+            return [
+                len([a for a in node["articles"] if a.id in article_ids_by_category[c]])
                 for c in categories
             ]
         return articles_by_category_proportions
 
 
     @staticmethod
-    def recursive_node_statistics(node, children_statistics, stat_func=None):
-        """Computes 3 statistics for the current node: "statistics", "children_statistics", "total_statistics"
-        
-        recursive_function ready for use in tag_tree.traverse_depth_first()
-        """
+    def compute_nodes_statistics(tag_tree_root, stat_func=None):
+        """Computes 3 statistics for the current node: "statistics", "children_statistics", "total_statistics" """
         if stat_func is None:
             stat_func = tag_tree.stats_articles_count
-        node["children_statistics"] = children_statistics
-        node["statistics"] = stat_func(node)
-        node["total_statistics"] = [
-            x+sum(cs[i] for cs in children_statistics) for i, x in enumerate(node["statistics"])
-        ]
-        return node["total_statistics"]
+        def recursive_node_statistics(node, children_statistics):
+            node["children_statistics"] = children_statistics
+            node["statistics"] = stat_func(node)
+            node["total_statistics"] = [
+                x+sum(cs[i] for cs in children_statistics) for i, x in enumerate(node["statistics"])
+            ]
+            return node["total_statistics"]
+        return tag_tree.traverse_depth_first(tag_tree_root, recursive_node_statistics)
+
 
     
     @staticmethod

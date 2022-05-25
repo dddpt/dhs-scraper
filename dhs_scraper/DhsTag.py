@@ -9,7 +9,8 @@ class DhsTag:
     """
     def __init__(self, tag, url):
         self.tag = tag
-        self. url =  url
+        self.url =  url
+        self.facets = url.split("=")[1]
     def get_levels(self):
         return [l.strip() for l in self.tag.split("/")]
     def get_level(self, level, default_to_last=False):
@@ -18,6 +19,15 @@ class DhsTag:
             return levels[level]
         elif default_to_last:
             return levels[-1]
+        return None
+    def get_facets_levels(self):
+        return self.facets.split(".")
+    def get_facets_level(self, level, default_to_last=False):
+        facets_levels = self.get_facets_levels()
+        if level<len(facets_levels):
+            return facets_levels[level]
+        elif default_to_last:
+            return facets_levels[-1]
         return None
     @property
     def ftag(self):
@@ -39,39 +49,11 @@ class DhsTag:
         if as_dict:
             return self.__dict__.copy()
         else:
-            return json.dumps(self.__dict__)
+            return json.dumps(self.__dict__)        
+
     @staticmethod
     def from_json(json_dict):
         return DhsTag(json_dict["tag"], json_dict["url"])
-
-    @staticmethod
-    def get_tag_tree_node(tag_tree_root, dhs_tag, missing_behaviour=None):
-        levels = dhs_tag.get_levels()
-        current_node=tag_tree_root
-        for l in levels:
-            child_node = None
-            for c in current_node["children"]:
-                if c["name"]==l:
-                    child_node=c
-                    break
-            if child_node is None:
-                if missing_behaviour is None:
-                    return None
-                if missing_behaviour == "create":
-                    child_node = tag_tree.create_empty_node(l, current_node["name"])
-                    current_node["children"].append(child_node)
-                if missing_behaviour == "error":
-                    raise Exception("get_tag_tree_node() non-existent tag tree node for level "+l+" of tag "+dhs_tag) 
-            current_node = child_node
-        return current_node
-
-    @staticmethod
-    def build_tag_tree(tags):
-        root_node = tag_tree.create_empty_node("root")
-        for t in tags:
-            DhsTag.get_tag_tree_node(root_node, t, "create")
-        return root_node
-
     @staticmethod
     def get_articles_per_tag(articles):
         utags = set(t for a in articles for t in a.tags)
@@ -87,12 +69,47 @@ class DhsTag:
 class tag_tree:
 
     @staticmethod
-    def create_empty_node(name, parent=None):
+    def create_empty_node(name, parent=None, facet=None):
         return {
             "name": name,
             "parent": parent,
+            "facet": facet,
             "children": []
         }
+
+    @staticmethod
+    def get_tag_tree_nodes(tag_tree_root, dhs_tag, missing_behaviour=None):
+        levels = dhs_tag.get_levels()
+        facets_levels = dhs_tag.get_facets_levels()
+        current_node = tag_tree_root
+        tag_tree_nodes = [None]*len(levels)
+        for i,l in enumerate(levels):
+            child_node = None
+            for c in current_node["children"]:
+                if c["name"]==l:
+                    child_node=c
+                    break
+            if child_node is None:
+                if missing_behaviour is None:
+                    return tag_tree_nodes
+                if missing_behaviour == "create":
+                    child_node = tag_tree.create_empty_node(l, current_node["name"], facets_levels[i])
+                    current_node["children"].append(child_node)
+                if missing_behaviour == "error":
+                    raise Exception("get_tag_tree_node() non-existent tag tree node for level "+l+" of tag "+dhs_tag) 
+            tag_tree_nodes[i]=child_node
+            current_node=child_node
+        return tag_tree_nodes
+    @staticmethod
+    def get_tag_tree_node(tag_tree_root, dhs_tag, missing_behaviour=None):
+        tag_tree_nodes = tag_tree.get_tag_tree_nodes(tag_tree_root, dhs_tag, missing_behaviour)
+        return tag_tree_nodes[-1]
+    @staticmethod
+    def build_tag_tree(tags):
+        root_node = tag_tree.create_empty_node("root")
+        for t in tags:
+            tag_tree.get_tag_tree_node(root_node, t, "create")
+        return root_node
 
     @staticmethod
     def traverse_depth_first(node, recursive_function, **recursive_function_kwargs):
@@ -166,7 +183,7 @@ class tag_tree:
             node["articles"]=[]
         tag_tree.traverse_depth_first(tag_tree_root, add_empty_articles_list)
         for t, articles in articles_per_tag:
-            tag_node = DhsTag.get_tag_tree_node(tag_tree_root, t)
+            tag_node = tag_tree.get_tag_tree_node(tag_tree_root, t)
             if tag_node is None:
                 raise Exception("tag_tree.add_articles_to_tag_tree() non-existent tag tree node for tag: "+t.__str__()) 
             tag_node["articles"]=[a for a in articles]

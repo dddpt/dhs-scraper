@@ -10,7 +10,7 @@ class DhsTag:
     def __init__(self, tag, url):
         self.tag = tag
         self.url =  url
-        self.facets = url.split("=")[1]
+        self.facet = url.split("=")[1]
     def get_levels(self):
         return [l.strip() for l in self.tag.split("/")]
     def get_level(self, level, default_to_last=False):
@@ -20,17 +20,17 @@ class DhsTag:
         elif default_to_last:
             return levels[-1]
         return None
-    def get_facets_levels(self):
+    def get_facet_levels(self):
         """Hack: some tags have 1 more component in their facet than levels?
         Hacked to dump the first component if to many facet components"""
-        original_facets = [f for f in self.facets.split(".") if f!=""]
-        return original_facets[(len(original_facets)-len(self.get_levels())):]
-    def get_facets_level(self, level, default_to_last=False):
-        facets_levels = self.get_facets_levels()
-        if level<len(facets_levels):
-            return facets_levels[level]
+        original_facet = [f for f in self.facet.split(".") if f!=""]
+        return original_facet[(len(original_facet)-len(self.get_levels())):]
+    def get_facet_level(self, level, default_to_last=False):
+        facet_levels = self.get_facet_levels()
+        if level<len(facet_levels):
+            return facet_levels[level]
         elif default_to_last:
-            return facets_levels[-1]
+            return facet_levels[-1]
         return None
     @property
     def ftag(self):
@@ -83,7 +83,7 @@ class tag_tree:
     @staticmethod
     def get_tag_tree_nodes(tag_tree_root, dhs_tag, missing_behaviour=None):
         levels = dhs_tag.get_levels()
-        facets_levels = dhs_tag.get_facets_levels()
+        facet_levels = dhs_tag.get_facet_levels()
         current_node = tag_tree_root
         tag_tree_nodes = [None]*len(levels)
         for i,l in enumerate(levels):
@@ -96,7 +96,7 @@ class tag_tree:
                 if missing_behaviour is None:
                     return tag_tree_nodes
                 if missing_behaviour == "create":
-                    child_node = tag_tree.create_empty_node(l, current_node["name"], facets_levels[i])
+                    child_node = tag_tree.create_empty_node(l, current_node["name"], facet_levels[i])
                     current_node["children"].append(child_node)
                 if missing_behaviour == "error":
                     raise Exception("get_tag_tree_node() non-existent tag tree node for level "+l+" of tag "+dhs_tag) 

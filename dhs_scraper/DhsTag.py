@@ -96,7 +96,7 @@ class tag_tree:
                 if missing_behaviour is None:
                     return tag_tree_nodes
                 if missing_behaviour == "create":
-                    child_node = tag_tree.create_empty_node(l, current_node["name"], facet_levels[i])
+                    child_node = tag_tree.create_empty_node(l, current_node["name"], ".".join(facet_levels[0:(i+1)]))
                     current_node["children"].append(child_node)
                 if missing_behaviour == "error":
                     raise Exception("get_tag_tree_node() non-existent tag tree node for level "+l+" of tag "+dhs_tag) 

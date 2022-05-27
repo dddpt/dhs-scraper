@@ -21,7 +21,10 @@ class DhsTag:
             return levels[-1]
         return None
     def get_facets_levels(self):
-        return self.facets.split(".")
+        """Hack: some tags have 1 more component in their facet than levels?
+        Hacked to dump the first component if to many facet components"""
+        original_facets = [f for f in self.facets.split(".") if f!=""]
+        return original_facets[(len(original_facets)-len(self.get_levels())):]
     def get_facets_level(self, level, default_to_last=False):
         facets_levels = self.get_facets_levels()
         if level<len(facets_levels):

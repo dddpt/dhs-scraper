@@ -72,9 +72,10 @@ class DhsTag:
 class tag_tree:
 
     @staticmethod
-    def create_empty_node(name, parent=None, facet=None):
+    def create_empty_node(name, parent=None, facet=None, full_name=None):
         return {
             "name": name,
+            "full_name": full_name,
             "parent": parent,
             "facet": facet,
             "children": []
@@ -96,7 +97,10 @@ class tag_tree:
                 if missing_behaviour is None:
                     return tag_tree_nodes
                 if missing_behaviour == "create":
-                    child_node = tag_tree.create_empty_node(l, current_node["name"], ".".join(facet_levels[0:(i+1)]))
+                    full_name=None
+                    if (i+1)==len(levels):
+                        full_name=dhs_tag.tag
+                    child_node = tag_tree.create_empty_node(l, current_node["name"], ".".join(facet_levels[0:(i+1)]), full_name)
                     current_node["children"].append(child_node)
                 if missing_behaviour == "error":
                     raise Exception("get_tag_tree_node() non-existent tag tree node for level "+l+" of tag "+dhs_tag) 

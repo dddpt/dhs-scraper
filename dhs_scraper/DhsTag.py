@@ -7,10 +7,10 @@ class DhsTag:
     
     Implements equality and hash based on "tag" property, not url.
     """
-    def __init__(self, tag, url):
+    def __init__(self, tag, url=None):
         self.tag = tag
         self.url =  url
-        self.facet = url.split("=")[1]
+        self.facet = url.split("=")[1] if url is not None else None
     def get_levels(self):
         return [l.strip() for l in self.tag.split("/")]
     def get_level(self, level, default_to_last=False):

@@ -438,13 +438,7 @@ class DhsArticle:
             self.added_wikidata_wikipedia_to_text_links = True
 
     def __str__(self):
-        odict = self.__dict__.copy()
-        if "text" in odict and odict["text"] and len(odict["text"])>DHS_ARTICLE_TEXT_REPR_NB_CHAR:
-            odict["text"] = odict["text"][0:DHS_ARTICLE_TEXT_REPR_NB_CHAR]+" [...]"
-        odict["page_content"] = "loaded" if self.page_content else "not loaded"
-        if "tags" in odict and odict["tags"] is not None:
-            odict["tags"] = [t.tag for t in odict["tags"]]
-        return get_attributes_string("DhsArticle", odict)
+        return f'DhsArticle({self.language}, {self.id}, {self.search_result_name}, {("text loaded" if self._text else "no text")})'
     def __repr__(self):
         return self.__str__()
     def __eq__(self, other):
@@ -655,3 +649,4 @@ class DhsArticle:
                         parse_line = i in indices_to_keep
                     if parse_line:
                         yield load_article(line,i)
+# %%

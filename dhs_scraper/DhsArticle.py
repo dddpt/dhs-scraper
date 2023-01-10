@@ -13,7 +13,7 @@ import requests as r
 
 from .DhsTag import DhsTag
 from .utils import lxml_depth_first_iterator, is_text_or_link, get_attributes_string
-from dhs_scraper.wikidata import SPARQL_DOWNLOAD_DISCLAIMER, add_wikidata_wikipedia_to_text_links, get_wikidata_links_from_dhs_id, get_wikidata_main_link_from_dhs_id
+from .wikidata import SPARQL_DOWNLOAD_DISCLAIMER, add_wikidata_wikipedia_to_text_links, get_wikidata_links_from_dhs_id, get_wikidata_main_link_from_dhs_id
 
 DHS_SCRAPER_VERSION = "0.2.0"
 
